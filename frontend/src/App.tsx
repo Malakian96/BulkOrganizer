@@ -93,11 +93,6 @@ export default function App() {
     if (!favorites.has(card.cardId)) petalBurst(el, 6);
   }, [toggleFavorite, favorites]);
 
-  const handleToggleWishlist = useCallback((card: DesignCard, el: Element) => {
-    toggleWishlist(card.cardId);
-    if (!wishlist.has(card.cardId)) petalBurst(el, 4);
-  }, [toggleWishlist, wishlist]);
-
   // ── Drawer update (owned qty stepper) ───────────────────────────────────
   const handleUpdate = useCallback(async (card: DesignCard, qty: number) => {
     if (card.sourceType === 'collection') {

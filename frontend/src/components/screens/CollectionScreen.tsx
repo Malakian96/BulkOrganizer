@@ -47,7 +47,7 @@ export function CollectionScreen({ cards, view, search, selected, setSelected, o
       name: (a, b) => a.name.localeCompare(b.name),
       cost: (a, b) => (a.cost ?? 0) - (b.cost ?? 0),
       owned: (a, b) => b.owned - a.owned,
-      rarity: (a, b) => RARITY_ORDER.indexOf(b.rarity) - RARITY_ORDER.indexOf(a.rarity),
+      rarity: (a, b) => RARITY_ORDER.indexOf(b.rarity as typeof RARITY_ORDER[number]) - RARITY_ORDER.indexOf(a.rarity as typeof RARITY_ORDER[number]),
     };
     return [...r].sort(sortFns[filters.sort]);
   }, [cards, search, filters]);
