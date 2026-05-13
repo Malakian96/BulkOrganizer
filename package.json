@@ -1,0 +1,13 @@
+{
+  "name": "bulk-organizer",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "docker-compose -f docker-compose.dev.yml up --build",
+    "dev:down": "docker-compose -f docker-compose.dev.yml down",
+    "start": "docker-compose up --build",
+    "stop": "docker-compose down",
+    "logs": "docker-compose -f docker-compose.dev.yml logs -f",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install"
+  }
+}
