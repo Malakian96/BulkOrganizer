@@ -120,7 +120,7 @@ export function AddCardModal({ isOpen, onClose, onSubmit }: AddCardModalProps) {
             >
               {suggestions.map((card, i) => (
                 <li
-                  key={card.id}
+                  key={card.cardId}
                   onMouseDown={() => applysuggestion(card)}
                   className={`cursor-pointer px-3 py-2 text-sm ${
                     i === activeSuggestion ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50'

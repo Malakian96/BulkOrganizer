@@ -14,6 +14,8 @@ export interface UseCardsReturn {
   addCard: (payload: CreateCardPayload) => Promise<void>;
   removeSelected: () => Promise<void>;
   bulkEdit: (patch: BulkEditPayload['patch']) => Promise<void>;
+  deleteCards: (ids: string[]) => Promise<void>;
+  editCards: (ids: string[], patch: BulkEditPayload['patch']) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -76,6 +78,19 @@ export function useCards(): UseCardsReturn {
     [selectedIds, clearSelection]
   );
 
+  const deleteCards = useCallback(async (ids: string[]) => {
+    if (ids.length === 0) return;
+    await cardApi.removeCards({ ids });
+    setCards((prev) => prev.filter((c) => !ids.includes(c.id)));
+  }, []);
+
+  const editCards = useCallback(async (ids: string[], patch: BulkEditPayload['patch']) => {
+    if (ids.length === 0) return;
+    const updated = await cardApi.bulkEdit({ ids, patch });
+    const updatedMap = new Map(updated.map((c) => [c.id, c]));
+    setCards((prev) => prev.map((c) => updatedMap.get(c.id) ?? c));
+  }, []);
+
   return {
     cards,
     loading,
@@ -88,6 +103,8 @@ export function useCards(): UseCardsReturn {
     addCard,
     removeSelected,
     bulkEdit,
+    deleteCards,
+    editCards,
     refresh,
   };
 }

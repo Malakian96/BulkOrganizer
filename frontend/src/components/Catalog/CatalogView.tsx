@@ -1,11 +1,15 @@
+import { useState } from 'react';
+import { CatalogCard } from '../../api/catalogApi';
 import { useCatalog } from '../../hooks/useCatalog';
 import { CatalogCardTile } from './CatalogCardTile';
+import { CatalogCardDetail } from './CatalogCardDetail';
 import { CatalogFilters } from './CatalogFilters';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 
 export function CatalogView() {
   const { cards, total, page, totalPages, loading, error, filter, sets, setFilter, goToPage } =
     useCatalog();
+  const [selected, setSelected] = useState<CatalogCard | null>(null);
 
   return (
     <div>
@@ -32,9 +36,13 @@ export function CatalogView() {
         <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {cards.map((card) => (
-              <CatalogCardTile key={card.cardId} card={card} />
+              <CatalogCardTile key={card.cardId} card={card} onClick={setSelected} />
             ))}
           </div>
+
+          {selected && (
+            <CatalogCardDetail card={selected} onClose={() => setSelected(null)} />
+          )}
 
           {totalPages > 1 && (
             <div className="mt-8 flex items-center justify-center gap-2">

@@ -7,6 +7,7 @@ export interface CatalogCard {
   flavorText: string;
   colors: string[];
   cost: number | null;
+  power: number | null;
   type: string;
   supertype: string | null;
   might: number | null;
@@ -36,6 +37,7 @@ function docToCard(d: ReturnType<typeof toPlain>): CatalogCard {
     flavorText: (d.flavorText as string) ?? '',
     colors: (d.colors as string[]) ?? [],
     cost: (d.cost as number | null) ?? null,
+    power: (d.power as number | null) ?? null,
     type: (d.type as string) ?? '',
     supertype: (d.supertype as string | null) ?? null,
     might: (d.might as number | null) ?? null,

@@ -7,6 +7,7 @@ interface ICatalogData {
   flavorText: string;
   colors: string[];
   cost: number | null;
+  power: number | null;
   type: string;
   supertype: string | null;
   might: number | null;
@@ -29,6 +30,7 @@ const catalogSchema = new Schema<ICatalogData>(
     flavorText: { type: String, default: '' },
     colors: [{ type: String }],
     cost: { type: Number, default: null },
+    power: { type: Number, default: null },
     type: { type: String, default: '' },
     supertype: { type: String, default: null },
     might: { type: Number, default: null },

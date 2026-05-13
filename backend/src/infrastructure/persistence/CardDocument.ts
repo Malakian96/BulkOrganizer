@@ -1,6 +1,6 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model } from 'mongoose';
 
-export interface ICardDocument extends Document {
+export interface ICardDocument {
   _id: string;
   cardId: string;
   name: string;

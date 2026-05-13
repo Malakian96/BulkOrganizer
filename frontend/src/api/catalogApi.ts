@@ -7,6 +7,7 @@ export interface CatalogCard {
   flavorText: string;
   colors: string[];
   cost: number | null;
+  power: number | null;
   type: string;
   supertype: string | null;
   might: number | null;
