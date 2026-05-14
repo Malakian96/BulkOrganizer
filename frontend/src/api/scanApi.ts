@@ -40,3 +40,38 @@ export async function scanCard(imageBase64: string): Promise<ScanResult> {
   if (!res.ok) throw new Error(`Scan failed: ${res.status}`);
   return res.json() as Promise<ScanResult>;
 }
+
+// ── Socket.IO live scanner types ──────────────────────────────────────────
+
+export interface CatalogCardResult {
+  cardId: string;
+  name: string;
+  type: string;
+  rarity: string;
+  set: string;
+  setAbbr: string;
+  imageUrl: string;
+  colors: string[];
+  cost: number | null;
+  power: number | null;
+  might: number | null;
+  supertype: string | null;
+  effect: string;
+  flavorText: string;
+  tags: string[];
+  hasFoil: boolean;
+  promo: boolean;
+  banned: boolean;
+}
+
+export interface LiveScanDebug {
+  processedImageB64: string;
+  brightness: number;
+  query: string;
+}
+
+export interface LiveScanResult {
+  candidates: CatalogCardResult[];
+  ocrText: string;
+  debug: LiveScanDebug;
+}

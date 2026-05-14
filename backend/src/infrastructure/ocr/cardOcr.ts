@@ -39,10 +39,63 @@ export interface OcrResult {
   processedImageB64: string;
 }
 
-async function ocrCrop(buf: Buffer): Promise<string> {
+export interface NameOcrResult {
+  rawText: string;
+  brightness: number;
+  processedImageB64: string;
+}
+
+export async function extractCardName(base64Image: string): Promise<NameOcrResult> {
+  const data = base64Image.replace(/^data:image\/\w+;base64,/, '');
+  const inputBuf = Buffer.from(data, 'base64');
+
+  const { width: fullW = 640, height: fullH = 480 } = await sharp(inputBuf).metadata();
+
+  // Mirror the frontend guide overlay geometry:
+  // scan-frame is 62% wide, centered, 2.5/3.5 aspect. Height may exceed
+  // the display height and be clipped — clamp to fullH.
+  const cardW = Math.round(fullW * 0.62);
+  const cardH = Math.min(fullH, Math.round(cardW * (3.5 / 2.5)));
+  const cardX = Math.round((fullW - cardW) / 2);
+  const cardY = Math.max(0, Math.round((fullH - cardH) / 2));
+
+  // Name banner sits at 50–68% of card height
+  const left   = Math.max(0, cardX);
+  const top    = Math.min(fullH - 1, Math.round(cardY + cardH * 0.50));
+  const width  = Math.min(fullW - left, cardW);
+  const height = Math.min(fullH - top, Math.round(cardH * 0.18));
+
+  const grayBuf = await sharp(inputBuf)
+    .extract({ left, top, width, height: Math.max(1, height) })
+    .grayscale()
+    .normalize()
+    .toBuffer();
+
+  const { channels } = await sharp(grayBuf).stats();
+  const brightness = Math.round(channels[0].mean);
+
+  const needsInvert = brightness < 128;
+  const readyBuf = needsInvert
+    ? await sharp(grayBuf).negate({ alpha: false }).toBuffer()
+    : grayBuf;
+
+  const processedBuf = await sharp(readyBuf)
+    .resize(width * 4, Math.max(1, height) * 4, { kernel: 'lanczos3' })
+    .png()
+    .toBuffer();
+
   const worker = await getWorker();
-  const { data: { text } } = await worker.recognize(buf);
-  return text.trim();
+  // PSM 7 = single text line — best for a name banner
+  await worker.setParameters({ tessedit_pageseg_mode: '7' as never });
+  const { data: { text } } = await worker.recognize(processedBuf);
+  // Restore default
+  await worker.setParameters({ tessedit_pageseg_mode: '11' as never });
+
+  return {
+    rawText: text.trim(),
+    brightness,
+    processedImageB64: `data:image/png;base64,${processedBuf.toString('base64')}`,
+  };
 }
 
 export async function extractCardId(base64Image: string): Promise<OcrResult> {
