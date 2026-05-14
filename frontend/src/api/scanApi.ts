@@ -14,9 +14,18 @@ export interface ScannedCard {
   tags: string[];
 }
 
+export interface ScanDebug {
+  rawText: string;
+  matched: string | null;
+  setAbbr?: string;
+  number?: string;
+  reason: string;
+}
+
 export interface ScanResult {
   cardId: string | null;
   card: ScannedCard | null;
+  debug?: ScanDebug;
 }
 
 export async function scanCard(imageBase64: string): Promise<ScanResult> {

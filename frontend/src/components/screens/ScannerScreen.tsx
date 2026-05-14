@@ -211,6 +211,16 @@ export function ScannerScreen({ cards, onIncrement, onManualAdd }: ScannerScreen
                   <button className="btn sm" onClick={retry}>Try again</button>
                 </div>
               )}
+
+              {/* Debug info */}
+              {result.debug && (
+                <details className="scan-debug">
+                  <summary>Debug</summary>
+                  <div className="scan-debug-row"><span>OCR text</span><code>{result.debug.rawText || '(empty)'}</code></div>
+                  <div className="scan-debug-row"><span>Matched</span><code>{result.debug.matched ?? 'none'}</code></div>
+                  <div className="scan-debug-row"><span>Reason</span><code>{result.debug.reason}</code></div>
+                </details>
+              )}
             </div>
           )}
         </div>

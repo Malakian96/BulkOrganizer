@@ -11,7 +11,6 @@ function getWorker(): Promise<Worker> {
 
   _initPromise = createWorker('eng').then(async w => {
     await w.setParameters({
-      // Include slash and space for "SFD • 046/221" style IDs
       tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-•/. ',
     });
     _worker = w;
@@ -28,10 +27,15 @@ export function warmUpOcr(): void {
 
 export interface ExtractedId {
   setAbbr: string;
-  number: string; // zero-padded as seen on card, e.g. "046"
+  number: string;
 }
 
-export async function extractCardId(base64Image: string): Promise<ExtractedId | null> {
+export interface OcrResult {
+  rawText: string;
+  extracted: ExtractedId | null;
+}
+
+export async function extractCardId(base64Image: string): Promise<OcrResult> {
   const data = base64Image.replace(/^data:image\/\w+;base64,/, '');
   const inputBuf = Buffer.from(data, 'base64');
 
@@ -41,7 +45,6 @@ export async function extractCardId(base64Image: string): Promise<ExtractedId | 
 
   const { width: w = 900, height: h = 675 } = await sharp(resizedBuf).metadata();
 
-  // Card IDs sit in the bottom-left ~38% × 24% of the card face
   const cropW = Math.round(w * 0.38);
   const cropH = Math.round(h * 0.24);
 
@@ -57,10 +60,11 @@ export async function extractCardId(base64Image: string): Promise<ExtractedId | 
   const worker = await getWorker();
   const { data: { text } } = await worker.recognize(processedBuf);
 
-  // Match "SFD • 046/221" — the bullet may OCR as any non-alphanumeric char
-  // Capture: set abbreviation + 3-digit card number
-  const match = text.match(/([A-Z]{2,5})\W{0,5}(\d{3})\/\d{3}/);
-  if (!match) return null;
+  const rawText = text.trim();
 
-  return { setAbbr: match[1], number: match[2] };
+  // Match "SFD • 046/221" — bullet may OCR as any non-alphanumeric char
+  const match = rawText.match(/([A-Z]{2,5})\W{0,5}(\d{3})\/\d{3}/);
+  if (!match) return { rawText, extracted: null };
+
+  return { rawText, extracted: { setAbbr: match[1], number: match[2] } };
 }
