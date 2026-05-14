@@ -11,13 +11,13 @@ export class ScanController {
         return;
       }
 
-      const { rawText, extracted } = await extractCardId(image);
+      const { rawText, extracted, darkBackground } = await extractCardId(image);
 
       if (!extracted) {
         res.json({
           cardId: null,
           card: null,
-          debug: { rawText, matched: null, reason: 'No card ID pattern found in OCR output' },
+          debug: { rawText, matched: null, darkBackground, reason: 'No card ID pattern found in OCR output' },
         });
         return;
       }
@@ -31,6 +31,7 @@ export class ScanController {
         debug: {
           rawText,
           matched: displayId,
+          darkBackground,
           setAbbr: extracted.setAbbr,
           number: extracted.number,
           reason: card ? 'Found in catalog' : 'Not found in catalog',
