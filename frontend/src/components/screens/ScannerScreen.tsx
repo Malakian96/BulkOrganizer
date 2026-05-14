@@ -214,11 +214,18 @@ export function ScannerScreen({ cards, onIncrement, onManualAdd }: ScannerScreen
 
               {/* Debug info */}
               {result.debug && (
-                <details className="scan-debug">
+                <details className="scan-debug" open>
                   <summary>Debug</summary>
-                  <div className="scan-debug-row"><span>OCR text</span><code>{result.debug.rawText || '(empty)'}</code></div>
+                  {result.debug.processedImageB64 && (
+                    <div className="scan-debug-img-wrap">
+                      <div className="scan-debug-img-label">Image sent to Tesseract</div>
+                      <img src={result.debug.processedImageB64} alt="OCR input" className="scan-debug-img" />
+                    </div>
+                  )}
+                  <div className="scan-debug-row"><span>Raw OCR</span><code>{result.debug.rawText || '(empty)'}</code></div>
+                  <div className="scan-debug-row"><span>Compressed</span><code>{result.debug.compressedText || '(empty)'}</code></div>
                   <div className="scan-debug-row"><span>Matched</span><code>{result.debug.matched ?? 'none'}</code></div>
-                  <div className="scan-debug-row"><span>Dark bg</span><code>{result.debug.darkBackground ? 'yes (inverted)' : 'no'}</code></div>
+                  <div className="scan-debug-row"><span>Brightness</span><code>{result.debug.brightness}/255 · {result.debug.darkBackground ? 'dark bg → inverted' : 'light bg'}</code></div>
                   <div className="scan-debug-row"><span>Reason</span><code>{result.debug.reason}</code></div>
                 </details>
               )}

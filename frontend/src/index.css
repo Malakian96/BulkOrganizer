@@ -1297,7 +1297,17 @@ h1, h2, h3, h4, .serif {
 }
 .scan-debug summary {
   cursor: pointer; color: var(--ink-400); font-family: var(--font-mono);
-  user-select: none;
+  user-select: none; margin-bottom: 6px;
+}
+.scan-debug-img-wrap {
+  margin-bottom: 8px;
+}
+.scan-debug-img-label {
+  font-size: 10px; color: var(--ink-400); margin-bottom: 4px; font-family: var(--font-mono);
+}
+.scan-debug-img {
+  width: 100%; border: 1px solid var(--rule); border-radius: 3px;
+  image-rendering: pixelated;
 }
 .scan-debug-row {
   display: flex; gap: 8px; align-items: baseline;

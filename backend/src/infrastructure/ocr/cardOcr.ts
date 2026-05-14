@@ -11,9 +11,7 @@ function getWorker(): Promise<Worker> {
 
   _initPromise = createWorker('eng').then(async w => {
     await w.setParameters({
-      // PSM 7 = single text line — best for short IDs like "SFD • 046/221"
       tessedit_pageseg_mode: '7' as never,
-      // No whitelist — it forces wrong substitutions and hurts accuracy
     });
     _worker = w;
     _initPromise = null;
@@ -33,9 +31,12 @@ export interface ExtractedId {
 }
 
 export interface OcrResult {
-  rawText: string;
+  rawText: string;       // raw Tesseract output, no processing
+  compressedText: string; // after collapsing inter-digit spaces
   extracted: ExtractedId | null;
   darkBackground: boolean;
+  brightness: number;    // mean brightness of grayscale crop (0-255)
+  processedImageB64: string; // the exact image sent to Tesseract, as data URI
 }
 
 async function ocrCrop(buf: Buffer): Promise<string> {
@@ -54,7 +55,6 @@ export async function extractCardId(base64Image: string): Promise<OcrResult> {
 
   const { width: w = 900, height: h = 675 } = await sharp(resizedBuf).metadata();
 
-  // Wider crop to safely capture the full bottom ID line
   const cropW = Math.round(w * 0.55);
   const cropH = Math.round(h * 0.22);
 
@@ -64,29 +64,28 @@ export async function extractCardId(base64Image: string): Promise<OcrResult> {
     .normalize()
     .toBuffer();
 
-  // Auto-detect background brightness — card text is usually white on dark
   const { channels } = await sharp(grayscaleBuf).stats();
-  const darkBackground = channels[0].mean < 128;
+  const brightness = Math.round(channels[0].mean);
+  const darkBackground = brightness < 128;
 
-  // Tesseract works best with dark text on white; invert if background is dark
-  const binaryBuf = await sharp(grayscaleBuf)
-    .linear(darkBackground ? -1 : 1, darkBackground ? 255 : 0) // invert if needed
+  const processedBuf = await sharp(grayscaleBuf)
+    .linear(darkBackground ? -1 : 1, darkBackground ? 255 : 0)
     .threshold(140)
     .resize(cropW * 4, cropH * 4, { kernel: 'lanczos3' })
     .png()
     .toBuffer();
 
-  const rawText = await ocrCrop(binaryBuf);
+  const rawText = await ocrCrop(processedBuf);
+  const compressedText = rawText.replace(/(\d)\s+(?=[\d/])/g, '$1');
 
-  // Collapse spaces OCR inserts between digits: "0 4 6 / 2 2 1" → "046/221"
-  const compressed = rawText.replace(/(\d)\s+(?=[\d/])/g, '$1');
-
-  // Match "SFD • 046/221" — bullet may OCR as any non-alphanumeric chars
-  const match = compressed.match(/([A-Z]{2,5})\W{0,5}(\d{3})\/\d{3}/);
+  const match = compressedText.match(/([A-Z]{2,5})\W{0,5}(\d{3})\/\d{3}/);
 
   return {
     rawText,
+    compressedText,
     extracted: match ? { setAbbr: match[1], number: match[2] } : null,
     darkBackground,
+    brightness,
+    processedImageB64: `data:image/png;base64,${processedBuf.toString('base64')}`,
   };
 }
