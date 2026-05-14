@@ -18,7 +18,6 @@ export interface ScanDebug {
   rawText: string;
   compressedText: string;
   matched: string | null;
-  darkBackground: boolean;
   brightness: number;
   processedImageB64: string;
   setAbbr?: string;

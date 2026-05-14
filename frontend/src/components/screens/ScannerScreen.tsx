@@ -225,7 +225,7 @@ export function ScannerScreen({ cards, onIncrement, onManualAdd }: ScannerScreen
                   <div className="scan-debug-row"><span>Raw OCR</span><code>{result.debug.rawText || '(empty)'}</code></div>
                   <div className="scan-debug-row"><span>Compressed</span><code>{result.debug.compressedText || '(empty)'}</code></div>
                   <div className="scan-debug-row"><span>Matched</span><code>{result.debug.matched ?? 'none'}</code></div>
-                  <div className="scan-debug-row"><span>Brightness</span><code>{result.debug.brightness}/255 · {result.debug.darkBackground ? 'dark bg → inverted' : 'light bg'}</code></div>
+                  <div className="scan-debug-row"><span>Brightness</span><code>{result.debug.brightness}/255</code></div>
                   <div className="scan-debug-row"><span>Reason</span><code>{result.debug.reason}</code></div>
                 </details>
               )}

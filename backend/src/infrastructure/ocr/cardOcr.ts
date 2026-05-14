@@ -11,6 +11,7 @@ function getWorker(): Promise<Worker> {
 
   _initPromise = createWorker('eng').then(async w => {
     await w.setParameters({
+      // PSM 7 = single text line — best for short IDs like "SFD • 046/221"
       tessedit_pageseg_mode: '7' as never,
     });
     _worker = w;
@@ -31,12 +32,11 @@ export interface ExtractedId {
 }
 
 export interface OcrResult {
-  rawText: string;       // raw Tesseract output, no processing
-  compressedText: string; // after collapsing inter-digit spaces
+  rawText: string;
+  compressedText: string;
   extracted: ExtractedId | null;
-  darkBackground: boolean;
-  brightness: number;    // mean brightness of grayscale crop (0-255)
-  processedImageB64: string; // the exact image sent to Tesseract, as data URI
+  brightness: number;
+  processedImageB64: string;
 }
 
 async function ocrCrop(buf: Buffer): Promise<string> {
@@ -55,22 +55,26 @@ export async function extractCardId(base64Image: string): Promise<OcrResult> {
 
   const { width: w = 900, height: h = 675 } = await sharp(resizedBuf).metadata();
 
-  const cropW = Math.round(w * 0.55);
-  const cropH = Math.round(h * 0.22);
+  // The card guide frame starts at ~19% from left (scan-frame is 62% wide, centered).
+  // The ID text strip is the bottom ~15% of the frame height.
+  // Start from x=15% to avoid the dark background on the left edge of the frame.
+  const left   = Math.round(w * 0.15);
+  const cropW  = Math.round(w * 0.35);  // covers the ID zone width with margin
+  const cropH  = Math.round(h * 0.15);
+  const top    = h - cropH;
 
   const grayscaleBuf = await sharp(resizedBuf)
-    .extract({ left: 0, top: h - cropH, width: cropW, height: cropH })
+    .extract({ left, top, width: cropW, height: cropH })
     .grayscale()
     .normalize()
     .toBuffer();
 
   const { channels } = await sharp(grayscaleBuf).stats();
   const brightness = Math.round(channels[0].mean);
-  const darkBackground = brightness < 128;
 
+  // The card ID strip has dark text on a light background — no inversion needed.
+  // Just scale up so Tesseract has enough pixels to work with.
   const processedBuf = await sharp(grayscaleBuf)
-    .linear(darkBackground ? -1 : 1, darkBackground ? 255 : 0)
-    .threshold(140)
     .resize(cropW * 4, cropH * 4, { kernel: 'lanczos3' })
     .png()
     .toBuffer();
@@ -78,13 +82,13 @@ export async function extractCardId(base64Image: string): Promise<OcrResult> {
   const rawText = await ocrCrop(processedBuf);
   const compressedText = rawText.replace(/(\d)\s+(?=[\d/])/g, '$1');
 
+  // Match "SFD • 046/221" — bullet may OCR as any non-alphanumeric chars
   const match = compressedText.match(/([A-Z]{2,5})\W{0,5}(\d{3})\/\d{3}/);
 
   return {
     rawText,
     compressedText,
     extracted: match ? { setAbbr: match[1], number: match[2] } : null,
-    darkBackground,
     brightness,
     processedImageB64: `data:image/png;base64,${processedBuf.toString('base64')}`,
   };
