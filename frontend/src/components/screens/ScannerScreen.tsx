@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { DesignCard, mapCatalogCard, colorsToDomain, normalizeRarity } from '../../mockData';
+import { DesignCard, mapCatalogCard } from '../../mockData';
 import { scanCard, ScanResult } from '../../api/scanApi';
 import { Icon } from '../shared/Icon';
 
