@@ -1289,6 +1289,27 @@ h1, h2, h3, h4, .serif {
   font-family: var(--font-mono); flex-shrink: 0;
 }
 
+/* Debug panel */
+.scan-debug {
+  border-top: 1px solid var(--rule);
+  padding: 8px 12px;
+  font-size: 11px;
+}
+.scan-debug summary {
+  cursor: pointer; color: var(--ink-400); font-family: var(--font-mono);
+  user-select: none;
+}
+.scan-debug-row {
+  display: flex; gap: 8px; align-items: baseline;
+  padding: 3px 0; border-bottom: 1px solid var(--rule);
+}
+.scan-debug-row:last-child { border-bottom: 0; }
+.scan-debug-row span { color: var(--ink-400); min-width: 72px; flex-shrink: 0; }
+.scan-debug-row code {
+  font-family: var(--font-mono); color: var(--ink-800);
+  word-break: break-all; white-space: pre-wrap;
+}
+
 /* Scanner responsive */
 @media (max-width: 800px) {
   .scanner-layout {
