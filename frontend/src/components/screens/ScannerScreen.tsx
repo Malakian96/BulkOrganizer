@@ -7,7 +7,6 @@ import { Icon } from '../shared/Icon';
 interface ScannerScreenProps {
   cards: DesignCard[];
   onIncrement: (card: DesignCard) => void;
-  onManualAdd: () => void;
 }
 
 type ScanPhase = 'idle' | 'processing' | 'locked' | 'adding';
@@ -37,7 +36,7 @@ function getTopId(buf: (string | null)[]): string | null {
   return bestN >= LOCK_THRESHOLD ? best : null;
 }
 
-export function ScannerScreen({ cards, onIncrement, onManualAdd }: ScannerScreenProps) {
+export function ScannerScreen({ cards, onIncrement }: ScannerScreenProps) {
   const videoRef   = useRef<HTMLVideoElement>(null);
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const socketRef  = useRef<Socket | null>(null);
