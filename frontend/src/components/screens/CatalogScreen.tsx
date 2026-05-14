@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { DesignCard, DOMAINS, RARITIES, mapCatalogCard } from '../../mockData';
+import { DesignCard, mapCatalogCard } from '../../mockData';
 import { getCatalogCards, getCatalogSets } from '../../api/catalogApi';
 import { TCard } from '../TCard';
-import { Chip } from '../shared/Chip';
+import { FilterPanel } from '../FilterPanel';
 import { petalBurst } from '../../utils/petals';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 
@@ -19,33 +19,31 @@ interface CatalogScreenProps {
 interface SetInfo {
   id: string;
   name: string;
-  year: string;
-}
-
-function buildSetInfo(abbr: string): SetInfo {
-  return { id: abbr, name: abbr, year: '' };
 }
 
 export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCardClick, onToggleFav, onMarkOwned }: CatalogScreenProps) {
   const [sets, setSets] = useState<SetInfo[]>([]);
-  const [activeSet, setActiveSet] = useState<string>('');
+  const [activeSet, setActiveSet] = useState('');
   const [allSetCards, setAllSetCards] = useState<DesignCard[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState<{ domains: string[]; rarities: string[]; showMissing: boolean; showOwned: boolean }>({
-    domains: [], rarities: [], showMissing: true, showOwned: true,
-  });
+  const [filters, setFilters] = useState<{
+    domains: string[];
+    rarities: string[];
+    types: string[];
+    costRange: [number, number];
+    showMissing: boolean;
+    showOwned: boolean;
+  }>({ domains: [], rarities: [], types: [], costRange: [0, 12], showMissing: true, showOwned: true });
   const [limit, setLimit] = useState(80);
 
-  // Load set list
   useEffect(() => {
     void getCatalogSets().then(rawSets => {
-      const infos = rawSets.map(buildSetInfo);
+      const infos = rawSets.map(s => ({ id: s, name: s }));
       setSets(infos);
       if (infos.length > 0) setActiveSet(infos[0].id);
     });
   }, []);
 
-  // Load cards for active set
   useEffect(() => {
     if (!activeSet) return;
     setLoading(true);
@@ -58,7 +56,6 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
     }).finally(() => setLoading(false));
   }, [activeSet]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Re-derive owned status when collectionMap/prefs change
   const setCards = useMemo(() => {
     const base = allSetCards.map(c => ({
       ...c,
@@ -71,28 +68,30 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
     if (q) r = r.filter(c => c.name.toLowerCase().includes(q) || (c.num ?? '').includes(q));
     if (filters.domains.length) r = r.filter(c => filters.domains.includes(c.domain));
     if (filters.rarities.length) r = r.filter(c => filters.rarities.includes(c.rarity));
+    if (filters.types.length) r = r.filter(c => filters.types.some(t => c.type.toLowerCase() === t.toLowerCase()));
+    const [lo, hi] = filters.costRange;
+    if (lo > 0 || hi < 12) r = r.filter(c => { const cost = c.cost ?? 0; return cost >= lo && cost <= hi; });
     if (!filters.showMissing) r = r.filter(c => c.owned > 0);
     if (!filters.showOwned) r = r.filter(c => c.owned === 0);
     return r;
   }, [allSetCards, collectionMap, wishlist, favorites, search, filters]);
 
   const setStats = useMemo(() => sets.map(s => {
-    const all = allSetCards;
-    const owned = all.filter(c => (collectionMap.get(c.cardId) ?? 0) > 0).length;
-    return { ...s, owned, total: all.length, pct: all.length ? owned / all.length : 0 };
+    const owned = allSetCards.filter(c => (collectionMap.get(c.cardId) ?? 0) > 0).length;
+    return { ...s, owned, total: allSetCards.length, pct: allSetCards.length ? owned / allSetCards.length : 0 };
   }), [sets, allSetCards, collectionMap]);
+
+  const toggle = (key: 'domains' | 'rarities' | 'types', val: string) => {
+    setFilters(f => {
+      const cur = f[key];
+      return { ...f, [key]: cur.includes(val) ? cur.filter(x => x !== val) : [...cur, val] };
+    });
+  };
 
   const currentSetInfo = sets.find(s => s.id === activeSet);
   const ownedInSet = setCards.filter(c => c.owned > 0).length;
   const missingInSet = setCards.length - ownedInSet;
   const visible = setCards.slice(0, limit);
-
-  const toggle = (key: 'domains' | 'rarities', val: string) => {
-    setFilters(f => {
-      const cur = f[key] as string[];
-      return { ...f, [key]: cur.includes(val) ? cur.filter(x => x !== val) : [...cur, val] };
-    });
-  };
 
   return (
     <>
@@ -136,57 +135,56 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
         </div>
       )}
 
-      <div className="filterbar">
-        <div className="filter-group">
-          <span className="filter-label">Domain</span>
-          {DOMAINS.map(d => (
-            <Chip key={d.id} on={filters.domains.includes(d.id)} dot={d.color} onClick={() => toggle('domains', d.id)}>{d.name}</Chip>
-          ))}
-        </div>
-        <div className="filter-group">
-          <span className="filter-label">Rarity</span>
-          {RARITIES.map(r => (
-            <Chip key={r.id} on={filters.rarities.includes(r.id)} dot={r.color} onClick={() => toggle('rarities', r.id)}>{r.name}</Chip>
-          ))}
-        </div>
-        <div className="filter-group" style={{ borderRight: 0 }}>
-          <span className="filter-label">Show</span>
-          <Chip on={filters.showOwned} onClick={() => setFilters(f => ({ ...f, showOwned: !f.showOwned }))}>Owned</Chip>
-          <Chip on={filters.showMissing} onClick={() => setFilters(f => ({ ...f, showMissing: !f.showMissing }))}>Missing</Chip>
+      <div className="screen-layout">
+        <FilterPanel
+          selectedDomains={filters.domains}
+          onToggleDomain={d => toggle('domains', d)}
+          selectedRarities={filters.rarities}
+          onToggleRarity={r => toggle('rarities', r)}
+          selectedTypes={filters.types}
+          onToggleType={t => toggle('types', t)}
+          costRange={filters.costRange}
+          onCostRangeChange={r => setFilters(f => ({ ...f, costRange: r }))}
+          showOwned={filters.showOwned}
+          onToggleShowOwned={() => setFilters(f => ({ ...f, showOwned: !f.showOwned }))}
+          showMissing={filters.showMissing}
+          onToggleShowMissing={() => setFilters(f => ({ ...f, showMissing: !f.showMissing }))}
+        />
+
+        <div className="screen-main">
+          {loading ? (
+            <LoadingSpinner />
+          ) : setCards.length === 0 ? (
+            <div className="empty">
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 36, color: 'var(--ink-300)' }}>無</div>
+              <h3>Nothing in this slice</h3>
+              <p>{sets.length === 0 ? 'Run the scraper to populate the catalog.' : 'Adjust filters or pick another set.'}</p>
+            </div>
+          ) : (
+            <>
+              <div className="card-grid">
+                {visible.map(c => (
+                  <TCard
+                    key={c.id} card={c}
+                    missing={c.owned === 0}
+                    selected={false}
+                    onClick={onCardClick}
+                    onToggleFav={(card, el) => { onToggleFav(card, el); petalBurst(el, 4); }}
+                    onMarkOwned={(card, el) => { onMarkOwned(card); petalBurst(el, 7); }}
+                  />
+                ))}
+              </div>
+              {setCards.length > limit && (
+                <div style={{ textAlign: 'center', padding: '22px 0' }}>
+                  <button className="btn" onClick={() => setLimit(l => l + 80)}>
+                    Show {Math.min(80, setCards.length - limit)} more · {setCards.length - limit} remaining
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
-
-      {loading ? (
-        <LoadingSpinner />
-      ) : setCards.length === 0 ? (
-        <div className="empty">
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 36, color: 'var(--ink-300)' }}>無</div>
-          <h3>Nothing in this slice</h3>
-          <p>{sets.length === 0 ? 'Run the scraper to populate the catalog.' : 'Adjust filters or pick another set.'}</p>
-        </div>
-      ) : (
-        <>
-          <div className="card-grid">
-            {visible.map(c => (
-              <TCard
-                key={c.id} card={c}
-                missing={c.owned === 0}
-                selected={false}
-                onClick={onCardClick}
-                onToggleFav={(card, el) => { onToggleFav(card, el); petalBurst(el, 4); }}
-                onMarkOwned={(card, el) => { onMarkOwned(card); petalBurst(el, 7); }}
-              />
-            ))}
-          </div>
-          {setCards.length > limit && (
-            <div style={{ textAlign: 'center', padding: '22px 0' }}>
-              <button className="btn" onClick={() => setLimit(l => l + 80)}>
-                Show {Math.min(80, setCards.length - limit)} more · {setCards.length - limit} remaining
-              </button>
-            </div>
-          )}
-        </>
-      )}
     </>
   );
 }
