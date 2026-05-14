@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import * as http from 'http';
 import { env } from './infrastructure/config/env';
 import { mongoConnection } from './infrastructure/database/mongoConnection';
 import { MongoCardRepository } from './infrastructure/persistence/MongoCardRepository';
@@ -11,11 +12,11 @@ import { CatalogController } from './interface/http/controllers/CatalogControlle
 import { ScanController } from './interface/http/controllers/ScanController';
 import { createApp } from './interface/http/app';
 import { warmUpOcr } from './infrastructure/ocr/cardOcr';
+import { ScanSocket } from './infrastructure/scanning/ScanSocket';
 
 async function main() {
   await mongoConnection.connect(env.MONGODB_URI);
 
-  // Start loading Tesseract in the background so first scan is fast
   warmUpOcr();
 
   const repo = new MongoCardRepository();
@@ -29,7 +30,11 @@ async function main() {
   const scanController = new ScanController();
 
   const app = createApp(cardController, catalogController, scanController);
-  app.listen(Number(env.PORT), () => {
+
+  const httpServer = http.createServer(app);
+  new ScanSocket(httpServer, env.CORS_ORIGIN);
+
+  httpServer.listen(Number(env.PORT), () => {
     console.log(`[Server] Listening on port ${env.PORT} (${env.NODE_ENV})`);
   });
 }

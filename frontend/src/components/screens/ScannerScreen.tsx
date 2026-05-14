@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { DesignCard, mapCatalogCard } from '../../mockData';
-import { scanCard, ScanResult } from '../../api/scanApi';
+import { LiveScanResult, CatalogCardResult } from '../../api/scanApi';
 import { Icon } from '../shared/Icon';
 
 interface ScannerScreenProps {
@@ -9,7 +10,7 @@ interface ScannerScreenProps {
   onManualAdd: () => void;
 }
 
-type Phase = 'live' | 'processing' | 'result';
+type ScanPhase = 'idle' | 'processing' | 'locked' | 'adding';
 
 interface HistoryEntry {
   key: string;
@@ -19,15 +20,38 @@ interface HistoryEntry {
   count: number;
 }
 
-export function ScannerScreen({ cards, onIncrement, onManualAdd }: ScannerScreenProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [phase, setPhase] = useState<Phase>('live');
-  const [result, setResult] = useState<ScanResult | null>(null);
-  const [confirmMode, setConfirmMode] = useState(false);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
+// Lock when the same cardId appears in ≥2 of the last 3 frames
+const LOCK_WINDOW = 3;
+const LOCK_THRESHOLD = 2;
 
+function getTopId(buf: (string | null)[]): string | null {
+  const counts = new Map<string, number>();
+  for (const id of buf) {
+    if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let bestN = 0;
+  for (const [id, n] of counts) {
+    if (n > bestN) { best = id; bestN = n; }
+  }
+  return bestN >= LOCK_THRESHOLD ? best : null;
+}
+
+export function ScannerScreen({ cards, onIncrement, onManualAdd }: ScannerScreenProps) {
+  const videoRef   = useRef<HTMLVideoElement>(null);
+  const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const socketRef  = useRef<Socket | null>(null);
+  const lockBuf    = useRef<(string | null)[]>([]);
+  const cardCache  = useRef<Map<string, CatalogCardResult>>(new Map());
+
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [phase, setPhase]             = useState<ScanPhase>('idle');
+  const [lockedCard, setLockedCard]   = useState<CatalogCardResult | null>(null);
+  const [lastDebug, setLastDebug]     = useState<LiveScanResult['debug'] | null>(null);
+  const [lastOcrText, setLastOcrText] = useState('');
+  const [history, setHistory]         = useState<HistoryEntry[]>([]);
+
+  // ── Camera ───────────────────────────────────────────────────────────────
   useEffect(() => {
     let stream: MediaStream | null = null;
     navigator.mediaDevices
@@ -43,93 +67,106 @@ export function ScannerScreen({ cards, onIncrement, onManualAdd }: ScannerScreen
     return () => { stream?.getTracks().forEach(t => t.stop()); };
   }, []);
 
-  const handleShutter = useCallback(async () => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas || phase !== 'live') return;
+  // ── Socket ───────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const socket = io({ path: '/socket.io', transports: ['websocket', 'polling'] });
+    socketRef.current = socket;
 
-    // Capture respecting object-fit:cover — the stream resolution may differ
-    // from what's actually displayed, so map display coords → stream coords.
+    socket.on('scan:result', (result: LiveScanResult) => {
+      setLastDebug(result.debug);
+      setLastOcrText(result.ocrText);
+
+      const topId = result.candidates[0]?.cardId ?? null;
+      if (topId && result.candidates[0]) {
+        cardCache.current.set(topId, result.candidates[0]);
+      }
+
+      lockBuf.current = [...lockBuf.current, topId].slice(-LOCK_WINDOW);
+      const lockedId = getTopId(lockBuf.current);
+
+      if (lockedId) {
+        const card = cardCache.current.get(lockedId) ?? null;
+        if (card) {
+          setLockedCard(card);
+          setPhase('locked');
+          return;
+        }
+      }
+
+      setPhase('idle');
+    });
+
+    return () => { socket.disconnect(); };
+  }, []);
+
+  // ── Frame capture ────────────────────────────────────────────────────────
+  const sendFrame = useCallback(() => {
+    const video  = videoRef.current;
+    const canvas = canvasRef.current;
+    const socket = socketRef.current;
+    if (!video || !canvas || !socket?.connected) return;
+
     const displayW = video.clientWidth  || 640;
     const displayH = video.clientHeight || 480;
     const streamW  = video.videoWidth   || 640;
     const streamH  = video.videoHeight  || 480;
 
-    const scale   = Math.max(displayW / streamW, displayH / streamH);
-    const srcW    = displayW / scale;
-    const srcH    = displayH / scale;
-    const srcX    = (streamW - srcW) / 2;
-    const srcY    = (streamH - srcH) / 2;
+    const scale = Math.max(displayW / streamW, displayH / streamH);
+    const srcW  = displayW / scale;
+    const srcH  = displayH / scale;
+    const srcX  = (streamW - srcW) / 2;
+    const srcY  = (streamH - srcH) / 2;
 
     canvas.width  = displayW;
     canvas.height = displayH;
     canvas.getContext('2d')?.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, displayW, displayH);
 
-    // Crop to the scan-id-zone — the red guide box in the overlay.
-    // scan-frame is 62% wide, centered. The id-zone is the bottom-left
-    // 38%×14% of the frame. Frame height equals displayH because 2.5/3.5
-    // aspect-ratio at 62% width exceeds the 4:3 display height.
-    const frameW    = displayW * 0.62;
-    const idZoneW   = frameW * 0.38;
-    const idZoneH   = displayH * 0.14;
-    const idZoneX   = (displayW - frameW) / 2;
-    const idZoneY   = displayH - idZoneH;
-
-    // Generous margin so we don't clip the text at the edges
-    const mx = idZoneW * 0.3;
-    const my = idZoneH * 0.6;
-    const cx = Math.max(0, idZoneX - mx);
-    const cy = Math.max(0, idZoneY - my);
-    const cw = Math.min(displayW - cx, idZoneW + mx * 2);
-    const ch = Math.min(displayH - cy, idZoneH + my * 2);
-
-    const cropCanvas = document.createElement('canvas');
-    cropCanvas.width  = cw;
-    cropCanvas.height = ch;
-    cropCanvas.getContext('2d')?.drawImage(canvas, cx, cy, cw, ch, 0, 0, cw, ch);
-
+    socket.emit('scan:frame', canvas.toDataURL('image/jpeg', 0.7));
     setPhase('processing');
-    setResult(null);
-    setConfirmMode(false);
+  }, []);
 
-    try {
-      const b64 = cropCanvas.toDataURL('image/jpeg', 0.92);
-      const r = await scanCard(b64);
-      setResult(r);
-    } catch {
-      setResult({ cardId: null, card: null });
+  // ── Server-paced loop: fire when idle ────────────────────────────────────
+  useEffect(() => {
+    if (phase === 'idle') {
+      const id = requestAnimationFrame(() => sendFrame());
+      return () => cancelAnimationFrame(id);
     }
-    setPhase('result');
-  }, [phase]);
+  }, [phase, sendFrame]);
 
-  const doAdd = useCallback((r: ScanResult) => {
-    if (!r.card) return;
-    const inCollection = cards.find(c => c.cardId === r.card!.cardId);
-    const designCard = inCollection ?? mapCatalogCard(
-      { ...r.card, power: null, supertype: null, might: null, hasFoil: false, promo: false, banned: false, flavorText: '' },
-      0, new Set(), new Set(),
-    );
+  // ── Add card ─────────────────────────────────────────────────────────────
+  const doAdd = useCallback(() => {
+    if (!lockedCard) return;
+    setPhase('adding');
+
+    const inCollection = cards.find(c => c.cardId === lockedCard.cardId);
+    const designCard = inCollection ?? mapCatalogCard(lockedCard, 0, new Set(), new Set());
     onIncrement(designCard);
 
     setHistory(prev => {
-      const idx = prev.findIndex(e => e.cardId === r.card!.cardId);
+      const idx = prev.findIndex(e => e.cardId === lockedCard.cardId);
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = { ...next[idx], count: next[idx].count + 1 };
         return next;
       }
-      return [{ key: String(Date.now()), cardId: r.card!.cardId, name: r.card!.name, imageUrl: r.card!.imageUrl, count: 1 }, ...prev].slice(0, 20);
+      return [
+        { key: String(Date.now()), cardId: lockedCard.cardId, name: lockedCard.name, imageUrl: lockedCard.imageUrl, count: 1 },
+        ...prev,
+      ].slice(0, 20);
     });
 
-    setPhase('live');
-    setResult(null);
-    setConfirmMode(false);
-  }, [cards, onIncrement]);
+    setTimeout(resetToIdle, 800);
+  }, [lockedCard, cards, onIncrement]);
 
-  const retry = () => { setPhase('live'); setResult(null); setConfirmMode(false); };
+  const resetToIdle = () => {
+    lockBuf.current = [];
+    setLockedCard(null);
+    setLastDebug(null);
+    setLastOcrText('');
+    setPhase('idle');
+  };
 
-  const rc = result?.card;
-  const owned = rc ? (cards.find(c => c.cardId === rc.cardId)?.owned ?? 0) : 0;
+  const owned = lockedCard ? (cards.find(c => c.cardId === lockedCard.cardId)?.owned ?? 0) : 0;
 
   return (
     <>
@@ -139,9 +176,8 @@ export function ScannerScreen({ cards, onIncrement, onManualAdd }: ScannerScreen
       </div>
 
       <div className="scanner-layout">
-        {/* ── Main column ── */}
         <div>
-          <div className="scanner-view-wrap">
+          <div className={`scanner-view-wrap${phase === 'processing' ? ' scanner-view-wrap--scanning' : ''}`}>
             {cameraError ? (
               <div className="scanner-nocam">
                 <Icon name="camera" size={36} />
@@ -152,130 +188,86 @@ export function ScannerScreen({ cards, onIncrement, onManualAdd }: ScannerScreen
                 <video ref={videoRef} className="scanner-video" autoPlay playsInline muted />
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-                {/* Guide overlay — visible only while live */}
-                {phase === 'live' && (
+                {/* Scanning guide — visible while reading */}
+                {(phase === 'idle' || phase === 'processing') && (
                   <div className="scan-overlay" aria-hidden="true">
-                    {/* Card-sized frame */}
-                    <div className="scan-frame" />
-                    {/* Highlight the bottom-left ID region */}
-                    <div className="scan-id-zone">
-                      <span className="scan-id-label">Card ID</span>
+                    <div className="scan-frame">
+                      <div className="scan-name-zone">
+                        <span className="scan-id-label">Card Name</span>
+                      </div>
                     </div>
-                    <div className="scanner-hint">Point at card · ID in bottom-left corner</div>
+                    <div className="scanner-hint">
+                      {phase === 'processing' ? 'Reading…' : 'Point camera at card'}
+                    </div>
                   </div>
                 )}
 
-                {/* Processing overlay */}
-                {phase === 'processing' && (
-                  <div className="scan-overlay scan-processing">
-                    <div className="scan-spinner" />
-                    <span>Reading card…</span>
-                  </div>
-                )}
+                {/* Locked result overlay */}
+                {(phase === 'locked' || phase === 'adding') && lockedCard && (
+                  <div className="scan-overlay scan-locked-overlay">
+                    <div className="scan-locked-card">
+                      {lockedCard.imageUrl && (
+                        <img src={lockedCard.imageUrl} alt={lockedCard.name} className="scan-locked-img" />
+                      )}
+                      <div className="scan-locked-info">
+                        <div className="scan-locked-name">{lockedCard.name}</div>
+                        <div className="scan-locked-sub">
+                          {lockedCard.cardId} · {lockedCard.type} ·{' '}
+                          <span style={{ textTransform: 'capitalize' }}>{lockedCard.rarity}</span>
+                        </div>
+                        {owned > 0 && <div className="scan-owned-tag">{owned} in collection</div>}
+                      </div>
+                    </div>
 
-                {/* Shutter — only when live */}
-                {phase === 'live' && (
-                  <button className="shutter" onClick={() => void handleShutter()} aria-label="Capture" />
+                    {phase === 'locked' && (
+                      <div className="scan-locked-actions">
+                        <button className="btn primary" onClick={doAdd}>
+                          <Icon name="plus" size={14} /> Add to Collection
+                        </button>
+                        <button className="btn ghost" onClick={resetToIdle}>
+                          <Icon name="x" size={14} /> Dismiss
+                        </button>
+                      </div>
+                    )}
+
+                    {phase === 'adding' && (
+                      <div className="scan-adding-feedback">
+                        <span>✓ Added!</span>
+                      </div>
+                    )}
+                  </div>
                 )}
               </>
             )}
           </div>
 
-          {/* ── Result strip ── */}
-          {phase === 'result' && result && (
+          {/* Debug panel */}
+          {lastDebug && (
             <div className="scan-result-area">
-              {rc ? (
-                confirmMode ? (
-                  /* Detail / confirm view */
-                  <div className="scan-detail">
-                    {rc.imageUrl
-                      ? <img src={rc.imageUrl} alt={rc.name} className="scan-detail-img" />
-                      : <div className="scan-detail-img scan-detail-img--placeholder" />}
-                    <div className="scan-detail-info">
-                      <div className="scan-detail-name">{rc.name}</div>
-                      <div className="scan-detail-sub">
-                        {rc.cardId} · {rc.type} · <span style={{ textTransform: 'capitalize' }}>{rc.rarity}</span>
-                      </div>
-                      {owned > 0 && <div className="scan-owned-tag">{owned} in collection</div>}
-                      <div className="scan-detail-actions">
-                        <button className="btn primary sm" onClick={() => doAdd(result)}>
-                          <Icon name="plus" size={13} />
-                          Add to Collection
-                        </button>
-                        <button className="btn ghost sm" onClick={retry}>
-                          <Icon name="x" size={13} />
-                        </button>
-                      </div>
-                    </div>
+              <details className="scan-debug" open>
+                <summary>Debug</summary>
+                {lastDebug.processedImageB64 && (
+                  <div className="scan-debug-img-wrap">
+                    <div className="scan-debug-img-label">Image sent to Tesseract</div>
+                    <img src={lastDebug.processedImageB64} alt="OCR input" className="scan-debug-img" />
                   </div>
-                ) : (
-                  /* Quick strip */
-                  <div className="scan-quick">
-                    {rc.imageUrl
-                      ? <img src={rc.imageUrl} alt={rc.name} className="scan-quick-thumb" />
-                      : <div className="scan-quick-thumb scan-quick-thumb--placeholder" />}
-                    <div className="scan-quick-info">
-                      <div className="scan-quick-name">{rc.name}</div>
-                      <div className="scan-quick-sub">
-                        {rc.cardId}{owned > 0 ? ` · ${owned} owned` : ' · not owned'}
-                      </div>
-                    </div>
-                    <div className="scan-quick-actions">
-                      <button className="btn primary sm" onClick={() => doAdd(result)}>
-                        <Icon name="plus" size={13} /> Add
-                      </button>
-                      <button className="btn ghost sm" onClick={() => setConfirmMode(true)}>Details</button>
-                      <button className="btn ghost sq sm" onClick={retry}><Icon name="x" size={13} /></button>
-                    </div>
-                  </div>
-                )
-              ) : result.cardId ? (
-                /* ID read but not in catalog */
-                <div className="scan-feedback">
-                  <div className="scan-id-badge">{result.cardId}</div>
-                  <div className="scan-msg">Not found in catalog</div>
-                  <div className="scan-actions-row">
-                    <button className="btn sm" onClick={onManualAdd}>Add manually</button>
-                    <button className="btn ghost sm" onClick={retry}>Retry</button>
-                  </div>
-                </div>
-              ) : (
-                /* OCR failed */
-                <div className="scan-feedback">
-                  <div className="scan-msg">Couldn't read card ID</div>
-                  <div className="scan-hint">Align the bottom-left corner in the red guide box</div>
-                  <button className="btn sm" onClick={retry}>Try again</button>
-                </div>
-              )}
-
-              {/* Debug info */}
-              {result.debug && (
-                <details className="scan-debug" open>
-                  <summary>Debug</summary>
-                  {result.debug.processedImageB64 && (
-                    <div className="scan-debug-img-wrap">
-                      <div className="scan-debug-img-label">Image sent to Tesseract</div>
-                      <img src={result.debug.processedImageB64} alt="OCR input" className="scan-debug-img" />
-                    </div>
-                  )}
-                  <div className="scan-debug-row"><span>Raw OCR</span><code>{result.debug.rawText || '(empty)'}</code></div>
-                  <div className="scan-debug-row"><span>Compressed</span><code>{result.debug.compressedText || '(empty)'}</code></div>
-                  <div className="scan-debug-row"><span>Matched</span><code>{result.debug.matched ?? 'none'}</code></div>
-                  <div className="scan-debug-row"><span>Brightness</span><code>{result.debug.brightness}/255</code></div>
-                  <div className="scan-debug-row"><span>Reason</span><code>{result.debug.reason}</code></div>
-                </details>
-              )}
+                )}
+                <div className="scan-debug-row"><span>OCR text</span><code>{lastOcrText || '(empty)'}</code></div>
+                <div className="scan-debug-row"><span>Query</span><code>{lastDebug.query || '(empty)'}</code></div>
+                <div className="scan-debug-row"><span>Brightness</span><code>{lastDebug.brightness}/255</code></div>
+                <div className="scan-debug-row"><span>Phase</span><code>{phase}</code></div>
+              </details>
             </div>
           )}
         </div>
 
-        {/* ── History column ── */}
+        {/* History sidebar */}
         <div className="scan-history">
           <div className="scan-history-head">Recent Scans</div>
           {history.length === 0 ? (
             <div className="scan-history-empty">
               <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--ink-300)' }}>始</div>
-              <p>Tap the shutter to log a card</p>
+              <p>Scans appear here automatically</p>
             </div>
           ) : (
             <div className="scan-history-list">
