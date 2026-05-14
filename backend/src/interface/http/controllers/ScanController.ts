@@ -11,14 +11,16 @@ export class ScanController {
         return;
       }
 
-      const cardId = await extractCardId(image);
-      if (!cardId) {
+      const extracted = await extractCardId(image);
+      if (!extracted) {
         res.json({ cardId: null, card: null });
         return;
       }
 
-      const card = await mongoCatalogService.findByCardId(cardId);
-      res.json({ cardId, card });
+      // Build a human-readable ID to return even when catalog lookup fails
+      const displayId = `${extracted.setAbbr}-${extracted.number}`;
+      const card = await mongoCatalogService.findBySetAndNumber(extracted.setAbbr, extracted.number);
+      res.json({ cardId: card?.cardId ?? displayId, card });
     } catch (e) {
       next(e);
     }

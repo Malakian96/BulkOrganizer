@@ -107,6 +107,29 @@ export const mongoCatalogService = {
     return doc ? docToCard(toPlain(doc)) : null;
   },
 
+  // Flexible lookup for OCR results — tries common cardId formats the scraper may use
+  async findBySetAndNumber(setAbbr: string, number: string): Promise<CatalogCard | null> {
+    const n = parseInt(number, 10); // strip leading zeros: "046" → 46
+    const candidates = [
+      `${setAbbr}-${number}`,       // SFD-046
+      `${setAbbr}-${n}`,            // SFD-46
+      `${setAbbr}${number}`,        // SFD046
+      `${setAbbr}${n}`,             // SFD46
+      `${setAbbr} ${number}`,       // SFD 046
+      `${setAbbr} • ${number}`,     // SFD • 046
+    ];
+    for (const id of candidates) {
+      const doc = await CatalogModel.findOne({ cardId: id }).lean().exec();
+      if (doc) return docToCard(toPlain(doc));
+    }
+    // Last resort: regex match within the set
+    const doc = await CatalogModel.findOne({
+      setAbbr,
+      cardId: { $regex: String(n) },
+    }).lean().exec();
+    return doc ? docToCard(toPlain(doc)) : null;
+  },
+
   async count(): Promise<number> {
     return CatalogModel.countDocuments().exec();
   },
