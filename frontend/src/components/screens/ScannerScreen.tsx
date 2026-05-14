@@ -48,16 +48,52 @@ export function ScannerScreen({ cards, onIncrement, onManualAdd }: ScannerScreen
     const canvas = canvasRef.current;
     if (!video || !canvas || phase !== 'live') return;
 
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    canvas.getContext('2d')?.drawImage(video, 0, 0);
+    // Capture respecting object-fit:cover — the stream resolution may differ
+    // from what's actually displayed, so map display coords → stream coords.
+    const displayW = video.clientWidth  || 640;
+    const displayH = video.clientHeight || 480;
+    const streamW  = video.videoWidth   || 640;
+    const streamH  = video.videoHeight  || 480;
+
+    const scale   = Math.max(displayW / streamW, displayH / streamH);
+    const srcW    = displayW / scale;
+    const srcH    = displayH / scale;
+    const srcX    = (streamW - srcW) / 2;
+    const srcY    = (streamH - srcH) / 2;
+
+    canvas.width  = displayW;
+    canvas.height = displayH;
+    canvas.getContext('2d')?.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, displayW, displayH);
+
+    // Crop to the scan-id-zone — the red guide box in the overlay.
+    // scan-frame is 62% wide, centered. The id-zone is the bottom-left
+    // 38%×14% of the frame. Frame height equals displayH because 2.5/3.5
+    // aspect-ratio at 62% width exceeds the 4:3 display height.
+    const frameW    = displayW * 0.62;
+    const idZoneW   = frameW * 0.38;
+    const idZoneH   = displayH * 0.14;
+    const idZoneX   = (displayW - frameW) / 2;
+    const idZoneY   = displayH - idZoneH;
+
+    // Generous margin so we don't clip the text at the edges
+    const mx = idZoneW * 0.3;
+    const my = idZoneH * 0.6;
+    const cx = Math.max(0, idZoneX - mx);
+    const cy = Math.max(0, idZoneY - my);
+    const cw = Math.min(displayW - cx, idZoneW + mx * 2);
+    const ch = Math.min(displayH - cy, idZoneH + my * 2);
+
+    const cropCanvas = document.createElement('canvas');
+    cropCanvas.width  = cw;
+    cropCanvas.height = ch;
+    cropCanvas.getContext('2d')?.drawImage(canvas, cx, cy, cw, ch, 0, 0, cw, ch);
 
     setPhase('processing');
     setResult(null);
     setConfirmMode(false);
 
     try {
-      const b64 = canvas.toDataURL('image/jpeg', 0.85);
+      const b64 = cropCanvas.toDataURL('image/jpeg', 0.92);
       const r = await scanCard(b64);
       setResult(r);
     } catch {
