@@ -8,10 +8,15 @@ import { BulkEditCardsHandler } from './application/card/BulkEditCards/BulkEditC
 import { GetCardsHandler } from './application/card/GetCards/GetCardsHandler';
 import { CardController } from './interface/http/controllers/CardController';
 import { CatalogController } from './interface/http/controllers/CatalogController';
+import { ScanController } from './interface/http/controllers/ScanController';
 import { createApp } from './interface/http/app';
+import { warmUpOcr } from './infrastructure/ocr/cardOcr';
 
 async function main() {
   await mongoConnection.connect(env.MONGODB_URI);
+
+  // Start loading Tesseract in the background so first scan is fast
+  warmUpOcr();
 
   const repo = new MongoCardRepository();
   const cardController = new CardController(
@@ -21,8 +26,9 @@ async function main() {
     new GetCardsHandler(repo)
   );
   const catalogController = new CatalogController();
+  const scanController = new ScanController();
 
-  const app = createApp(cardController, catalogController);
+  const app = createApp(cardController, catalogController, scanController);
   app.listen(Number(env.PORT), () => {
     console.log(`[Server] Listening on port ${env.PORT} (${env.NODE_ENV})`);
   });

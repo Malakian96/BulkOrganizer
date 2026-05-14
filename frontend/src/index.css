@@ -1040,3 +1040,259 @@ h1, h2, h3, h4, .serif {
   .fpanel-domains { gap: 6px; }
   .domain-btn { width: 40px; height: 40px; font-size: 16px; }
 }
+
+/* ══════════════════════════════════════════
+   SCANNER SCREEN
+   ══════════════════════════════════════════ */
+
+.scanner-layout {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 20px;
+  align-items: start;
+  padding: 16px 20px 32px;
+}
+
+/* Camera viewport */
+.scanner-view-wrap {
+  position: relative;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+  aspect-ratio: 4/3;
+  width: 100%;
+  max-width: 560px;
+}
+
+.scanner-video {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+}
+
+/* No-camera fallback */
+.scanner-nocam {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; gap: 12px;
+  color: var(--ink-400);
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+}
+
+/* Overlays */
+.scan-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  pointer-events: none;
+}
+
+/* Card-frame guide */
+.scan-frame {
+  border: 2px solid rgba(255,255,255,.65);
+  border-radius: 6px;
+  width: 62%; aspect-ratio: 2.5/3.5;
+  box-shadow: 0 0 0 2000px rgba(0,0,0,.35);
+  position: relative;
+}
+
+/* Bottom-left ID zone highlight */
+.scan-id-zone {
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 38%; height: 14%;
+  border: 1.5px solid #e84040;
+  border-radius: 3px 0 0 3px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.scan-id-label {
+  font-size: 9px; font-family: var(--font-mono);
+  color: #e84040; letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* Hint text at bottom */
+.scanner-hint {
+  position: absolute; bottom: 10px;
+  font-size: 11px; color: rgba(255,255,255,.75);
+  font-family: var(--font-mono); letter-spacing: .02em;
+  pointer-events: none;
+}
+
+/* Processing overlay */
+.scan-processing {
+  background: rgba(0,0,0,.55);
+  gap: 14px; color: #fff; font-size: 13px;
+}
+
+.scan-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(255,255,255,.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Shutter button */
+.shutter {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  width: 56px; height: 56px; border-radius: 50%;
+  background: #fff;
+  border: 4px solid rgba(255,255,255,.5);
+  box-shadow: 0 0 0 2px rgba(0,0,0,.4), 0 2px 8px rgba(0,0,0,.5);
+  cursor: pointer; pointer-events: all;
+  transition: transform .1s, opacity .1s;
+}
+.shutter:active { transform: translateX(-50%) scale(.9); opacity: .85; }
+
+/* ── Result strip ── */
+.scan-result-area {
+  margin-top: 12px;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* Quick view (compact strip) */
+.scan-quick {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+}
+
+.scan-quick-thumb {
+  width: 40px; height: 56px;
+  border-radius: 4px; object-fit: cover; flex-shrink: 0;
+}
+.scan-quick-thumb--placeholder {
+  background: var(--paper-2); border: 1px solid var(--rule);
+}
+
+.scan-quick-info { flex: 1; min-width: 0; }
+.scan-quick-name {
+  font-size: 14px; font-weight: 600; color: var(--ink-900);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.scan-quick-sub { font-size: 11px; color: var(--ink-500); margin-top: 2px; font-family: var(--font-mono); }
+
+.scan-quick-actions {
+  display: flex; gap: 6px; flex-shrink: 0; align-items: center;
+}
+
+/* Detail / confirm view */
+.scan-detail {
+  display: flex; gap: 16px; padding: 16px;
+}
+
+.scan-detail-img {
+  width: 80px; height: 112px;
+  border-radius: 6px; object-fit: cover; flex-shrink: 0;
+}
+.scan-detail-img--placeholder {
+  background: var(--paper-2); border: 1px solid var(--rule);
+}
+
+.scan-detail-info { flex: 1; min-width: 0; }
+.scan-detail-name {
+  font-size: 16px; font-weight: 700; color: var(--ink-900);
+  margin-bottom: 4px;
+}
+.scan-detail-sub { font-size: 12px; color: var(--ink-500); font-family: var(--font-mono); }
+
+.scan-owned-tag {
+  display: inline-block; margin-top: 8px;
+  background: var(--paper-2); border: 1px solid var(--rule);
+  border-radius: 999px; padding: 2px 10px;
+  font-size: 11px; color: var(--ink-600); font-family: var(--font-mono);
+}
+
+.scan-detail-actions {
+  display: flex; gap: 8px; margin-top: 12px; align-items: center;
+}
+
+/* Feedback (not found / OCR fail) */
+.scan-feedback {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 20px 16px; text-align: center;
+}
+
+.scan-id-badge {
+  background: var(--paper-2); border: 1px solid var(--rule);
+  border-radius: var(--radius-sm); padding: 3px 10px;
+  font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+  color: var(--ink-800);
+}
+
+.scan-msg { font-size: 14px; font-weight: 600; color: var(--ink-700); }
+.scan-hint { font-size: 12px; color: var(--ink-400); }
+
+.scan-actions-row {
+  display: flex; gap: 8px; margin-top: 4px;
+}
+
+/* ── History sidebar ── */
+.scan-history {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.scan-history-head {
+  padding: 10px 14px;
+  font-size: 12px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-400);
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-2);
+}
+
+.scan-history-empty {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 32px 16px; gap: 8px;
+  color: var(--ink-400); font-size: 12px; text-align: center;
+}
+
+.scan-history-list {
+  display: flex; flex-direction: column;
+}
+
+.scan-history-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.scan-history-item:last-child { border-bottom: 0; }
+
+.scan-history-thumb {
+  width: 28px; height: 39px;
+  border-radius: 3px; overflow: hidden; flex-shrink: 0;
+  background: var(--paper-2);
+}
+.scan-history-thumb img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+
+.scan-history-info { flex: 1; min-width: 0; }
+.scan-history-name {
+  font-size: 12px; font-weight: 500; color: var(--ink-800);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.scan-history-id {
+  font-size: 10px; color: var(--ink-400); font-family: var(--font-mono);
+}
+
+.scan-history-count {
+  font-size: 12px; font-weight: 600; color: var(--ink-600);
+  font-family: var(--font-mono); flex-shrink: 0;
+}
+
+/* Scanner responsive */
+@media (max-width: 800px) {
+  .scanner-layout {
+    grid-template-columns: 1fr;
+  }
+  .scan-history { max-height: 260px; overflow-y: auto; }
+}

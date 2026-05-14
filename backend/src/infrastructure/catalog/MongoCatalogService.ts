@@ -102,6 +102,11 @@ export const mongoCatalogService = {
     return (sets as string[]).filter(Boolean).sort();
   },
 
+  async findByCardId(cardId: string): Promise<CatalogCard | null> {
+    const doc = await CatalogModel.findOne({ cardId }).lean().exec();
+    return doc ? docToCard(toPlain(doc)) : null;
+  },
+
   async count(): Promise<number> {
     return CatalogModel.countDocuments().exec();
   },
