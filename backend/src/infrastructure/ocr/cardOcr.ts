@@ -72,9 +72,11 @@ export async function extractCardId(base64Image: string): Promise<OcrResult> {
   const { channels } = await sharp(grayscaleBuf).stats();
   const brightness = Math.round(channels[0].mean);
 
-  // The card ID strip has dark text on a light background — no inversion needed.
-  // Just scale up so Tesseract has enough pixels to work with.
+  // The ID strip has white text on dark background (brightness ~80).
+  // Tesseract needs dark-text-on-white — invert when the crop is dark.
+  // No threshold: it was creating noise from the gradient background.
   const processedBuf = await sharp(grayscaleBuf)
+    .negate({ alpha: false })
     .resize(cropW * 4, cropH * 4, { kernel: 'lanczos3' })
     .png()
     .toBuffer();
