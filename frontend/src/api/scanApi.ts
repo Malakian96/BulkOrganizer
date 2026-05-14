@@ -17,6 +17,7 @@ export interface ScannedCard {
 export interface ScanDebug {
   rawText: string;
   matched: string | null;
+  darkBackground: boolean;
   setAbbr?: string;
   number?: string;
   reason: string;
