@@ -129,7 +129,11 @@ export async function extractCardId(base64Image: string): Promise<OcrResult> {
     .png()
     .toBuffer();
 
-  const rawText = await ocrCrop(processedBuf);
+  const rawText = await (async () => {
+    const worker = await getWorker();
+    const { data: { text } } = await worker.recognize(processedBuf);
+    return text.trim();
+  })();
   const compressedText = rawText.replace(/(\d)\s+(?=[\d/])/g, '$1');
 
   // Match "SFD • 046/221" — bullet may OCR as any non-alphanumeric chars

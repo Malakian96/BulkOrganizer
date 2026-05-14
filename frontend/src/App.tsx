@@ -363,7 +363,7 @@ export default function App() {
             <ScannerScreen
               cards={designCards}
               onIncrement={card => void handleIncrement(card)}
-              onManualAdd={() => setShowAdd(true)}
+
             />
           )}
           {tab === 'decks' && <DecksScreen />}
