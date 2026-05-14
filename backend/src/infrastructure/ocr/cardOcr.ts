@@ -11,8 +11,8 @@ function getWorker(): Promise<Worker> {
 
   _initPromise = createWorker('eng').then(async w => {
     await w.setParameters({
-      // PSM 7 = single text line — best for short IDs like "SFD • 046/221"
-      tessedit_pageseg_mode: '7' as never,
+      // PSM 11 = sparse text — finds text anywhere, tolerates surrounding noise
+      tessedit_pageseg_mode: '11' as never,
     });
     _worker = w;
     _initPromise = null;
@@ -49,22 +49,15 @@ export async function extractCardId(base64Image: string): Promise<OcrResult> {
   const data = base64Image.replace(/^data:image\/\w+;base64,/, '');
   const inputBuf = Buffer.from(data, 'base64');
 
+  // Frontend already crops to the scan-id-zone; just resize to a standard width
+  // so Tesseract has enough pixels regardless of device resolution.
   const resizedBuf = await sharp(inputBuf)
-    .resize(900, null, { withoutEnlargement: true })
+    .resize(600, null, { withoutEnlargement: false })
     .toBuffer();
 
-  const { width: w = 900, height: h = 675 } = await sharp(resizedBuf).metadata();
-
-  // The card guide frame starts at ~19% from left (scan-frame is 62% wide, centered).
-  // The ID text strip is the bottom ~15% of the frame height.
-  // Start from x=15% to avoid the dark background on the left edge of the frame.
-  const left   = Math.round(w * 0.15);
-  const cropW  = Math.round(w * 0.35);  // covers the ID zone width with margin
-  const cropH  = Math.round(h * 0.15);
-  const top    = h - cropH;
+  const { width: w = 600, height: h = 200 } = await sharp(resizedBuf).metadata();
 
   const grayscaleBuf = await sharp(resizedBuf)
-    .extract({ left, top, width: cropW, height: cropH })
     .grayscale()
     .normalize()
     .toBuffer();
@@ -72,12 +65,14 @@ export async function extractCardId(base64Image: string): Promise<OcrResult> {
   const { channels } = await sharp(grayscaleBuf).stats();
   const brightness = Math.round(channels[0].mean);
 
-  // The ID strip has white text on dark background (brightness ~80).
-  // Tesseract needs dark-text-on-white — invert when the crop is dark.
-  // No threshold: it was creating noise from the gradient background.
-  const processedBuf = await sharp(grayscaleBuf)
-    .negate({ alpha: false })
-    .resize(cropW * 4, cropH * 4, { kernel: 'lanczos3' })
+  // Invert if text is white-on-dark so Tesseract gets dark-text-on-white.
+  const needsInvert = brightness < 128;
+  const invertedBuf = needsInvert
+    ? await sharp(grayscaleBuf).negate({ alpha: false }).toBuffer()
+    : grayscaleBuf;
+
+  const processedBuf = await sharp(invertedBuf)
+    .resize(w * 3, h * 3, { kernel: 'lanczos3' })
     .png()
     .toBuffer();
 
