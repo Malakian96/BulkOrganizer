@@ -11,9 +11,9 @@ export class ScanController {
         return;
       }
 
-      const { rawText, compressedText, extracted, darkBackground, brightness, processedImageB64 } = await extractCardId(image);
+      const { rawText, compressedText, extracted, brightness, processedImageB64 } = await extractCardId(image);
 
-      const debugBase = { rawText, compressedText, darkBackground, brightness, processedImageB64 };
+      const debugBase = { rawText, compressedText, brightness, processedImageB64 };
 
       if (!extracted) {
         res.json({
