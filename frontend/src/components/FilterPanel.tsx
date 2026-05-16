@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { DOMAINS, RARITIES } from '../mockData';
 
-const CARD_TYPES = ['Champion', 'Unit', 'Spell', 'Gear', 'Terrain', 'Rune'];
+const CARD_TYPES = ['Champion', 'Unit', 'Spell', 'Gear', 'Rune', 'Relic', 'Battlefield'];
 export type Sort = 'recent' | 'name' | 'cost' | 'owned' | 'rarity';
 
 function ChevronIcon() {

@@ -29,7 +29,8 @@ export interface CatalogFilter {
   colors?: string[];
 }
 
-function docToCard(d: ReturnType<typeof toPlain>): CatalogCard {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function docToCard(d: any): CatalogCard {
   return {
     cardId: d.cardId as string,
     name: d.name as string,
@@ -51,9 +52,6 @@ function docToCard(d: ReturnType<typeof toPlain>): CatalogCard {
     banned: (d.banned as boolean) ?? false,
   };
 }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toPlain(d: any) { return d; }
 
 function buildQuery(filter?: CatalogFilter): Record<string, unknown> {
   const query: Record<string, unknown> = {};
@@ -104,7 +102,7 @@ export const mongoCatalogService = {
 
   async findByCardId(cardId: string): Promise<CatalogCard | null> {
     const doc = await CatalogModel.findOne({ cardId }).lean().exec();
-    return doc ? docToCard(toPlain(doc)) : null;
+    return doc ? docToCard(doc) : null;
   },
 
   // Flexible lookup for OCR results — tries common cardId formats the scraper may use
@@ -120,14 +118,14 @@ export const mongoCatalogService = {
     ];
     for (const id of candidates) {
       const doc = await CatalogModel.findOne({ cardId: id }).lean().exec();
-      if (doc) return docToCard(toPlain(doc));
+      if (doc) return docToCard(doc);
     }
     // Last resort: regex match within the set
     const doc = await CatalogModel.findOne({
       setAbbr,
       cardId: { $regex: String(n) },
     }).lean().exec();
-    return doc ? docToCard(toPlain(doc)) : null;
+    return doc ? docToCard(doc) : null;
   },
 
   async count(): Promise<number> {

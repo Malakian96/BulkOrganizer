@@ -9,8 +9,8 @@ interface Props {
   onFilterChange: (f: Partial<CatalogFilter>) => void;
 }
 
-const TYPES = ['Champion', 'Unit', 'Spell', 'Gear', 'Terrain'];
-const RARITIES = ['Common', 'Uncommon', 'Rare', 'Legendary'];
+const TYPES = ['Champion', 'Unit', 'Spell', 'Gear', 'Rune', 'Relic', 'Battlefield'];
+const RARITIES = ['common', 'uncommon', 'rare', 'epic', 'overnumbered'];
 
 export function CatalogFilters({ sets, filter, total, onFilterChange }: Props) {
   const [nameInput, setNameInput] = useState(filter.name ?? '');
@@ -66,7 +66,7 @@ export function CatalogFilters({ sets, filter, total, onFilterChange }: Props) {
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         >
           <option value="">All Rarities</option>
-          {RARITIES.map((r) => <option key={r} value={r}>{r}</option>)}
+          {RARITIES.map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
         </select>
       </div>
 
