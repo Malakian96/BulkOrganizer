@@ -10,12 +10,12 @@ export interface CardProps {
   flavorText: string;
   colors: string[];        // e.g. ["Chaos", "Order"]
   cost: number | null;
-  type: string;            // "Spell" | "Unit" | "Gear" | "Terrain" | "Champion"
+  type: string;            // "Champion" | "Unit" | "Spell" | "Gear" | "Rune" | "Relic" | "Battlefield"
   supertype: string | null;
   might: number | null;
   tags: string[];          // e.g. ["Mech", "Piltover"]
   set: string;             // "Origins"
-  rarity: string;          // "Common" | "Uncommon" | "Rare" | "Legendary"
+  rarity: string;          // "common" | "uncommon" | "rare" | "epic" | "overnumbered"
   imageUrl: string;
   hasFoil: boolean;
   promo: boolean;

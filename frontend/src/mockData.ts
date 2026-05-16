@@ -15,8 +15,8 @@ export const RARITIES = [
   { id: 'common',    name: 'Common',    color: '#6b5d52' },
   { id: 'uncommon',  name: 'Uncommon',  color: '#4a6b8c' },
   { id: 'rare',      name: 'Rare',      color: '#8b6b2a' },
-  { id: 'epic',      name: 'Epic',      color: '#6b3a8c' },
-  { id: 'legendary', name: 'Legendary', color: '#c4322a' },
+  { id: 'epic',        name: 'Epic',        color: '#6b3a8c' },
+  { id: 'overnumbered', name: 'Overnumbered', color: '#c4322a' },
 ] as const;
 
 export const MOCK_DECKS = [
