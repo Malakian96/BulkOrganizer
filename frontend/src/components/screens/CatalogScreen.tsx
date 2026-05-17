@@ -1,15 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { DesignCard, mapCatalogCard } from '../../mockData';
-import { CatalogCard } from '../../api/catalogApi';
+import { CatalogCard, getCatalogCards, getCatalogSets } from '../../api/catalogApi';
 import { TCard } from '../TCard';
 import { FilterPanel } from '../FilterPanel';
 import { petalBurst } from '../../utils/petals';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 
 interface CatalogScreenProps {
-  catalogBySet: Map<string, CatalogCard[]>;
-  catalogSets: string[];
-  catalogLoading: boolean;
   search: string;
   collectionMap: Map<string, number>;
   wishlist: Set<string>;
@@ -22,9 +19,6 @@ interface CatalogScreenProps {
 const PAGE_SIZE = 80;
 
 export function CatalogScreen({
-  catalogBySet,
-  catalogSets,
-  catalogLoading,
   search,
   collectionMap,
   wishlist,
@@ -33,6 +27,25 @@ export function CatalogScreen({
   onToggleFav,
   onMarkOwned,
 }: CatalogScreenProps) {
+  const [catalogBySet, setCatalogBySet] = useState<Map<string, CatalogCard[]>>(new Map());
+  const [catalogSets, setCatalogSets]   = useState<string[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const rawSets = await getCatalogSets();
+      if (cancelled) return;
+      const pages = await Promise.all(rawSets.map(s => getCatalogCards({ set: s, limit: 2000 })));
+      if (cancelled) return;
+      const map = new Map<string, CatalogCard[]>();
+      rawSets.forEach((s, i) => map.set(s, pages[i].cards));
+      setCatalogSets(rawSets);
+      setCatalogBySet(map);
+      setCatalogLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const [activeSet, setActiveSet] = useState('');
   const [filters, setFilters] = useState<{
     domains: string[];
