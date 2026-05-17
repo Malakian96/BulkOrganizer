@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useCards } from './hooks/useCards';
 import { useLocalPrefs } from './hooks/useLocalPrefs';
-import { useCatalog } from './hooks/useCatalog';
 import { DesignCard, mapCardDTO } from './mockData';
 import { petalBurst } from './utils/petals';
 import { Icon } from './components/shared/Icon';
@@ -51,7 +50,6 @@ export default function App() {
 
   const { cards: rawCards, addCard, editCards, deleteCards, refresh } = useCards();
   const { wishlist, favorites, toggleWishlist, toggleFavorite, setWishlistOn } = useLocalPrefs();
-  const { bySet: catalogBySet, sets: catalogSets, loading: catalogLoading } = useCatalog();
 
   // Apply theme to document
   useEffect(() => {
@@ -352,9 +350,6 @@ export default function App() {
           )}
           {tab === 'catalog' && (
             <CatalogScreen
-              catalogBySet={catalogBySet}
-              catalogSets={catalogSets}
-              catalogLoading={catalogLoading}
               collectionMap={collectionMap}
               wishlist={wishlist}
               favorites={favorites}
