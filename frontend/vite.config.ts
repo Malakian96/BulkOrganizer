@@ -6,6 +6,11 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    watch: {
+      // Polling ensures file changes are detected inside Docker bind mounts
+      usePolling: true,
+      interval: 300,
+    },
     proxy: {
       '/api': 'http://localhost:4000',
       '/health': 'http://localhost:4000',
