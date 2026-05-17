@@ -38,22 +38,28 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
     showOwned: boolean;
   }>({ domains: [], rarities: [], types: [], costRange: [0, 12], showMissing: true, showOwned: true });
   const [displayLimit, setDisplayLimit] = useState(PAGE_SIZE);
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
-  // Load all sets and all their cards upfront so stats are accurate for every tab
+  // Load all sets and all their cards upfront so every tab has its own accurate count
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    void getCatalogSets().then(async rawSets => {
-      const infos = rawSets.map(s => ({ id: s, name: s }));
-      setSets(infos);
-      if (infos.length > 0) setActiveSet(infos[0].id);
+    void (async () => {
+      const rawSets = await getCatalogSets();
+      if (cancelled) return;
+
+      setSets(rawSets.map(s => ({ id: s, name: s })));
+      if (rawSets.length > 0) setActiveSet(rawSets[0]);
 
       const pages = await Promise.all(rawSets.map(s => getCatalogCards({ set: s, limit: 2000 })));
+      if (cancelled) return;
+
       const cache = new Map<string, CatalogCard[]>();
       rawSets.forEach((s, i) => cache.set(s, pages[i].cards));
       setSetRawCards(cache);
       setLoading(false);
-    });
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // Reset display limit whenever the active set, filters, or search changes
@@ -61,18 +67,20 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
     setDisplayLimit(PAGE_SIZE);
   }, [activeSet, filters, search]);
 
-  // Infinite-scroll: load more when sentinel comes into view
-  const observerCallback = useCallback<IntersectionObserverCallback>(([entry]) => {
-    if (entry.isIntersecting) setDisplayLimit(l => l + PAGE_SIZE);
-  }, []);
-
-  useEffect(() => {
-    const el = sentinelRef.current;
+  // Callback ref: fires whenever the sentinel div mounts or unmounts.
+  // This is necessary because the sentinel only exists in the DOM when
+  // displayLimit < setCards.length, so a plain useRef would capture null
+  // on the initial render (before data loads) and never attach.
+  const sentinelCallbackRef = useCallback((el: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
     if (!el) return;
-    const observer = new IntersectionObserver(observerCallback, { threshold: 0.1 });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [observerCallback]);
+    observerRef.current = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setDisplayLimit(l => l + PAGE_SIZE); },
+      { threshold: 0.1 },
+    );
+    observerRef.current.observe(el);
+  }, []);
 
   // Derive mapped cards for the active set (re-maps when collection/prefs change)
   const allSetCards = useMemo(() => {
@@ -202,7 +210,7 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
                 ))}
               </div>
               {displayLimit < setCards.length && (
-                <div ref={sentinelRef} style={{ height: 40 }} />
+                <div ref={sentinelCallbackRef} style={{ height: 40 }} />
               )}
             </>
           )}
