@@ -1,12 +1,15 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { DesignCard, mapCatalogCard } from '../../mockData';
-import { CatalogCard, getCatalogCards, getCatalogSets } from '../../api/catalogApi';
+import { CatalogCard } from '../../api/catalogApi';
 import { TCard } from '../TCard';
 import { FilterPanel } from '../FilterPanel';
 import { petalBurst } from '../../utils/petals';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 
 interface CatalogScreenProps {
+  catalogBySet: Map<string, CatalogCard[]>;
+  catalogSets: string[];
+  catalogLoading: boolean;
   search: string;
   collectionMap: Map<string, number>;
   wishlist: Set<string>;
@@ -16,19 +19,21 @@ interface CatalogScreenProps {
   onMarkOwned: (card: DesignCard) => void;
 }
 
-interface SetEntry {
-  id: string;
-  name: string;
-  cards: CatalogCard[];
-}
-
 const PAGE_SIZE = 80;
 
-export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCardClick, onToggleFav, onMarkOwned }: CatalogScreenProps) {
-  // Each entry holds raw catalog cards for one set — never changes after initial load
-  const [setEntries, setSetEntries] = useState<SetEntry[]>([]);
+export function CatalogScreen({
+  catalogBySet,
+  catalogSets,
+  catalogLoading,
+  search,
+  collectionMap,
+  wishlist,
+  favorites,
+  onCardClick,
+  onToggleFav,
+  onMarkOwned,
+}: CatalogScreenProps) {
   const [activeSet, setActiveSet] = useState('');
-  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<{
     domains: string[];
     rarities: string[];
@@ -39,89 +44,46 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
   }>({ domains: [], rarities: [], types: [], costRange: [0, 12], showMissing: true, showOwned: true });
   const [displayLimit, setDisplayLimit] = useState(PAGE_SIZE);
 
-  // Ref used to find the scrollable ancestor and attach the scroll listener
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const scrollElRef = useRef<HTMLElement | null>(null);
-
-  // Load all sets and all their cards upfront in parallel
+  // Set the active set once catalog data arrives
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    void (async () => {
-      const rawSets = await getCatalogSets();
-      if (cancelled) return;
+    if (catalogSets.length > 0 && !activeSet) setActiveSet(catalogSets[0]);
+  }, [catalogSets, activeSet]);
 
-      const pages = await Promise.all(
-        rawSets.map(s => getCatalogCards({ set: s, limit: 2000 }))
-      );
-      if (cancelled) return;
-
-      const entries: SetEntry[] = rawSets.map((s, i) => ({
-        id: s,
-        name: s,
-        cards: pages[i].cards,
-      }));
-
-      setSetEntries(entries);
-      if (entries.length > 0) setActiveSet(entries[0].id);
-      setLoading(false);
-    })();
-    return () => { cancelled = true; };
+  // Attach scroll listener to the .content container — direct querySelector, no DOM walk
+  useEffect(() => {
+    const container = document.querySelector<HTMLElement>('.content');
+    if (!container) return;
+    const onScroll = () => {
+      const remaining = container.scrollHeight - container.scrollTop - container.clientHeight;
+      if (remaining < 300) setDisplayLimit(l => l + PAGE_SIZE);
+    };
+    container.addEventListener('scroll', onScroll, { passive: true });
+    return () => container.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Find the scrollable ancestor once after mount and attach a scroll listener
-  useEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-
-    // Walk up the DOM to find the element with overflow-y: auto/scroll
-    let el: HTMLElement | null = wrapper.parentElement;
-    while (el) {
-      const oy = getComputedStyle(el).overflowY;
-      if (oy === 'auto' || oy === 'scroll') break;
-      el = el.parentElement;
-    }
-    if (!el) return;
-    scrollElRef.current = el;
-
-    const onScroll = () => {
-      const container = scrollElRef.current;
-      if (!container) return;
-      const remaining = container.scrollHeight - container.scrollTop - container.clientHeight;
-      if (remaining < 300) {
-        setDisplayLimit(l => l + PAGE_SIZE);
-      }
-    };
-
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el!.removeEventListener('scroll', onScroll);
-  }, []); // runs once after mount
-
-  // Reset display limit when set, filters, or search changes
+  // Reset display limit and scroll to top when set, filters, or search changes
   useEffect(() => {
     setDisplayLimit(PAGE_SIZE);
-    // Scroll the container back to top when switching sets
-    if (scrollElRef.current) scrollElRef.current.scrollTop = 0;
+    const container = document.querySelector<HTMLElement>('.content');
+    if (container) container.scrollTop = 0;
   }, [activeSet, filters, search]);
 
-  // Per-set stats — each entry reads from its own slot in setEntries, independent of activeSet
+  // Per-set stats — keyed by set id, independent of activeSet
   const setTabStats = useMemo(
-    () => setEntries.map(entry => {
-      const total = entry.cards.length;
-      const owned = entry.cards.filter(c => (collectionMap.get(c.cardId) ?? 0) > 0).length;
-      return { id: entry.id, name: entry.name, total, owned, pct: total ? owned / total : 0 };
+    () => catalogSets.map(id => {
+      const cards = catalogBySet.get(id) ?? [];
+      const total = cards.length;
+      const owned = cards.filter(c => (collectionMap.get(c.cardId) ?? 0) > 0).length;
+      return { id, name: id, total, owned, pct: total ? owned / total : 0 };
     }),
-    [setEntries, collectionMap],
+    [catalogSets, catalogBySet, collectionMap],
   );
 
   // Mapped cards for the active set only
   const allSetCards = useMemo(() => {
-    const entry = setEntries.find(e => e.id === activeSet);
-    if (!entry) return [];
-    return entry.cards.map(c =>
-      mapCatalogCard(c, collectionMap.get(c.cardId) ?? 0, wishlist, favorites)
-    );
-  }, [setEntries, activeSet, collectionMap, wishlist, favorites]);
+    const cards = catalogBySet.get(activeSet) ?? [];
+    return cards.map(c => mapCatalogCard(c, collectionMap.get(c.cardId) ?? 0, wishlist, favorites));
+  }, [catalogBySet, activeSet, collectionMap, wishlist, favorites]);
 
   const setCards = useMemo(() => {
     const base = allSetCards.map(c => ({
@@ -150,19 +112,19 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
     });
   }, []);
 
-  const currentEntry = setEntries.find(e => e.id === activeSet);
+  const activeTabStats = setTabStats.find(s => s.id === activeSet);
   const ownedInSet = setCards.filter(c => c.owned > 0).length;
   const missingInSet = setCards.length - ownedInSet;
   const visible = setCards.slice(0, displayLimit);
 
   return (
-    <div ref={wrapperRef}>
+    <div>
       <div className="section-head">
         <div><h2>Catalog</h2></div>
-        <div className="meta">{setEntries.length} sets</div>
+        <div className="meta">{catalogSets.length} sets</div>
       </div>
 
-      {setEntries.length > 0 && (
+      {catalogSets.length > 0 && (
         <div className="set-tabs">
           {setTabStats.map(s => (
             <button
@@ -182,12 +144,12 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
         </div>
       )}
 
-      {currentEntry && (
+      {activeTabStats && (
         <div className="catalog-bar">
           <div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600 }}>{currentEntry.name}</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600 }}>{activeTabStats.name}</div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--ink-500)', letterSpacing: '.14em', textTransform: 'uppercase', marginTop: 2 }}>
-              {currentEntry.id} · {setCards.length} printed
+              {activeTabStats.id} · {setCards.length} printed
             </div>
           </div>
           <div className="totals">
@@ -214,13 +176,13 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
         />
 
         <div className="screen-main">
-          {loading ? (
+          {catalogLoading ? (
             <LoadingSpinner />
           ) : setCards.length === 0 ? (
             <div className="empty">
               <div style={{ fontFamily: 'var(--font-serif)', fontSize: 36, color: 'var(--ink-300)' }}>無</div>
               <h3>Nothing in this slice</h3>
-              <p>{setEntries.length === 0 ? 'Run the scraper to populate the catalog.' : 'Adjust filters or pick another set.'}</p>
+              <p>{catalogSets.length === 0 ? 'Run the scraper to populate the catalog.' : 'Adjust filters or pick another set.'}</p>
             </div>
           ) : (
             <>
