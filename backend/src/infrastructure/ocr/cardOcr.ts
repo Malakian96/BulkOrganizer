@@ -79,16 +79,22 @@ export async function extractCardName(base64Image: string): Promise<NameOcrResul
     ? await sharp(grayBuf).negate({ alpha: false }).toBuffer()
     : grayBuf;
 
+  // Upscale first (preserving grey levels for quality interpolation), then
+  // binarize with a fixed threshold. Tesseract performs far better on a clean
+  // black-on-white binary image than on grey-level metallic/gradient card fonts
+  // which it misreads as punctuation.
   const processedBuf = await sharp(readyBuf)
     .resize(width * 4, Math.max(1, height) * 4, { kernel: 'lanczos3' })
+    .threshold(160)
     .png()
     .toBuffer();
 
   const worker = await getWorker();
-  // PSM 7 = single text line — best for a name banner
-  await worker.setParameters({ tessedit_pageseg_mode: '7' as never });
+  // PSM 6 = single uniform block of text — more tolerant than PSM 7 for
+  // multi-word names and slight card misalignment.
+  await worker.setParameters({ tessedit_pageseg_mode: '6' as never });
   const { data: { text } } = await worker.recognize(processedBuf);
-  // Restore default
+  // Restore sparse-text default for other callers
   await worker.setParameters({ tessedit_pageseg_mode: '11' as never });
 
   return {
