@@ -18,7 +18,7 @@ services:
       PORT: 4000
       MONGODB_URI: mongodb://mongodb:27017/bulk_organizer
       NODE_ENV: production
-      CORS_ORIGIN: http://localhost
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
 
   frontend:
     build:
@@ -29,6 +29,8 @@ services:
       - backend
     ports:
       - "80:80"
+    environment:
+      BACKEND_URL: http://backend:4000
 
 volumes:
   mongo_data:
