@@ -16,7 +16,7 @@ export class CatalogController {
     try {
       const { name, set, type, rarity, colors } = req.query as Record<string, string | undefined>;
       const page = Math.max(1, parseInt((req.query.page as string) ?? '1', 10));
-      const limit = Math.min(100, Math.max(1, parseInt((req.query.limit as string) ?? '48', 10)));
+      const limit = Math.min(2000, Math.max(1, parseInt((req.query.limit as string) ?? '48', 10)));
 
       const result = await mongoCatalogService.findAll(
         {
