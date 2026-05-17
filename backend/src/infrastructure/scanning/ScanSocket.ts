@@ -1,6 +1,6 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import type { Server as HttpServer } from 'http';
-import { extractCardName } from '../ocr/cardOcr';
+import { extractCardName, extractCardId } from '../ocr/cardOcr';
 import { mongoCatalogService, CatalogCard } from '../catalog/MongoCatalogService';
 
 export interface ScanResultPayload {
@@ -37,9 +37,22 @@ export class ScanSocket {
     try {
       const { rawText, brightness, processedImageB64 } = await extractCardName(frameB64);
       const query = rawText.replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
-      const candidates = query.length >= 2
+      let candidates = query.length >= 2
         ? await mongoCatalogService.search(query, 5)
         : [];
+
+      // Name OCR can fail on stylised card fonts — fall back to card-ID OCR
+      // which reads the simpler set-code/number printed at the card bottom.
+      if (candidates.length === 0) {
+        const idResult = await extractCardId(frameB64);
+        if (idResult.extracted) {
+          const card = await mongoCatalogService.findBySetAndNumber(
+            idResult.extracted.setAbbr,
+            idResult.extracted.number,
+          );
+          if (card) candidates = [card];
+        }
+      }
 
       socket.emit('scan:result', {
         candidates,
