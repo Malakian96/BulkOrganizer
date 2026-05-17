@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { DesignCard, mapCatalogCard } from '../../mockData';
-import { getCatalogCards, getCatalogSets } from '../../api/catalogApi';
+import { CatalogCard, getCatalogCards, getCatalogSets } from '../../api/catalogApi';
 import { TCard } from '../TCard';
 import { FilterPanel } from '../FilterPanel';
 import { petalBurst } from '../../utils/petals';
@@ -21,11 +21,14 @@ interface SetInfo {
   name: string;
 }
 
+const PAGE_SIZE = 80;
+
 export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCardClick, onToggleFav, onMarkOwned }: CatalogScreenProps) {
   const [sets, setSets] = useState<SetInfo[]>([]);
   const [activeSet, setActiveSet] = useState('');
-  const [allSetCards, setAllSetCards] = useState<DesignCard[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Raw catalog cards cached per set — fetched once, never re-fetched
+  const [setRawCards, setSetRawCards] = useState<Map<string, CatalogCard[]>>(new Map());
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<{
     domains: string[];
     rarities: string[];
@@ -34,27 +37,63 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
     showMissing: boolean;
     showOwned: boolean;
   }>({ domains: [], rarities: [], types: [], costRange: [0, 12], showMissing: true, showOwned: true });
-  const [limit, setLimit] = useState(80);
+  const [displayLimit, setDisplayLimit] = useState(PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
+  // Load all sets and all their cards upfront so stats are accurate for every tab
   useEffect(() => {
-    void getCatalogSets().then(rawSets => {
+    setLoading(true);
+    void getCatalogSets().then(async rawSets => {
       const infos = rawSets.map(s => ({ id: s, name: s }));
       setSets(infos);
       if (infos.length > 0) setActiveSet(infos[0].id);
+
+      const pages = await Promise.all(rawSets.map(s => getCatalogCards({ set: s, limit: 2000 })));
+      const cache = new Map<string, CatalogCard[]>();
+      rawSets.forEach((s, i) => cache.set(s, pages[i].cards));
+      setSetRawCards(cache);
+      setLoading(false);
     });
   }, []);
 
+  // Reset display limit whenever the active set, filters, or search changes
   useEffect(() => {
-    if (!activeSet) return;
-    setLoading(true);
-    setLimit(80);
-    void getCatalogCards({ set: activeSet, limit: 500 }).then(page => {
-      const mapped = page.cards.map(c =>
-        mapCatalogCard(c, collectionMap.get(c.cardId) ?? 0, wishlist, favorites)
-      );
-      setAllSetCards(mapped);
-    }).finally(() => setLoading(false));
-  }, [activeSet]); // eslint-disable-line react-hooks/exhaustive-deps
+    setDisplayLimit(PAGE_SIZE);
+  }, [activeSet, filters, search]);
+
+  // Infinite-scroll: load more when sentinel comes into view
+  const observerCallback = useCallback<IntersectionObserverCallback>(([entry]) => {
+    if (entry.isIntersecting) setDisplayLimit(l => l + PAGE_SIZE);
+  }, []);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(observerCallback, { threshold: 0.1 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [observerCallback]);
+
+  // Derive mapped cards for the active set (re-maps when collection/prefs change)
+  const allSetCards = useMemo(() => {
+    const raw = setRawCards.get(activeSet) ?? [];
+    return raw.map(c => mapCatalogCard(c, collectionMap.get(c.cardId) ?? 0, wishlist, favorites));
+  }, [setRawCards, activeSet, collectionMap, wishlist, favorites]);
+
+  // Per-set stats — accurate for ALL tabs because we use the cache, not just allSetCards
+  const setStats = useMemo(() => sets.map(s => {
+    const raw = setRawCards.get(s.id) ?? [];
+    const total = raw.length;
+    const owned = raw.filter(c => (collectionMap.get(c.cardId) ?? 0) > 0).length;
+    return { ...s, total, owned, pct: total ? owned / total : 0 };
+  }), [sets, setRawCards, collectionMap]);
+
+  const toggle = (key: 'domains' | 'rarities' | 'types', val: string) => {
+    setFilters(f => {
+      const cur = f[key];
+      return { ...f, [key]: cur.includes(val) ? cur.filter(x => x !== val) : [...cur, val] };
+    });
+  };
 
   const setCards = useMemo(() => {
     const base = allSetCards.map(c => ({
@@ -76,22 +115,10 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
     return r;
   }, [allSetCards, collectionMap, wishlist, favorites, search, filters]);
 
-  const setStats = useMemo(() => sets.map(s => {
-    const owned = allSetCards.filter(c => (collectionMap.get(c.cardId) ?? 0) > 0).length;
-    return { ...s, owned, total: allSetCards.length, pct: allSetCards.length ? owned / allSetCards.length : 0 };
-  }), [sets, allSetCards, collectionMap]);
-
-  const toggle = (key: 'domains' | 'rarities' | 'types', val: string) => {
-    setFilters(f => {
-      const cur = f[key];
-      return { ...f, [key]: cur.includes(val) ? cur.filter(x => x !== val) : [...cur, val] };
-    });
-  };
-
   const currentSetInfo = sets.find(s => s.id === activeSet);
   const ownedInSet = setCards.filter(c => c.owned > 0).length;
   const missingInSet = setCards.length - ownedInSet;
-  const visible = setCards.slice(0, limit);
+  const visible = setCards.slice(0, displayLimit);
 
   return (
     <>
@@ -174,12 +201,8 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
                   />
                 ))}
               </div>
-              {setCards.length > limit && (
-                <div style={{ textAlign: 'center', padding: '22px 0' }}>
-                  <button className="btn" onClick={() => setLimit(l => l + 80)}>
-                    Show {Math.min(80, setCards.length - limit)} more · {setCards.length - limit} remaining
-                  </button>
-                </div>
+              {displayLimit < setCards.length && (
+                <div ref={sentinelRef} style={{ height: 40 }} />
               )}
             </>
           )}
