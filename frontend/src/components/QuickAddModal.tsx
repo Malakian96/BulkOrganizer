@@ -6,7 +6,7 @@ import { CatalogCard, searchCatalog } from '../api/catalogApi';
 import { CreateCardPayload } from '../types/card';
 import { useDebounce } from '../hooks/useDebounce';
 
-const TYPES = ['Unit', 'Spell', 'Rune', 'Gear', 'Champion'];
+const TYPES = ['Champion', 'Unit', 'Spell', 'Gear', 'Rune', 'Relic', 'Battlefield'];
 
 interface QuickAddModalProps {
   open: boolean;

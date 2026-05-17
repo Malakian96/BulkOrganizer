@@ -7,10 +7,11 @@ function decodeHtmlEntities(html: string): string {
 }
 
 const RARITY_COLOR: Record<string, string> = {
-  Common: 'bg-gray-100 text-gray-600',
-  Uncommon: 'bg-green-100 text-green-700',
-  Rare: 'bg-blue-100 text-blue-700',
-  Legendary: 'bg-yellow-100 text-yellow-700',
+  common: 'bg-gray-100 text-gray-600',
+  uncommon: 'bg-green-100 text-green-700',
+  rare: 'bg-blue-100 text-blue-700',
+  epic: 'bg-purple-100 text-purple-700',
+  overnumbered: 'bg-yellow-100 text-yellow-700',
 };
 
 interface Props {
@@ -19,7 +20,7 @@ interface Props {
 }
 
 export function CatalogCardDetail({ card, onClose }: Props) {
-  const rarityClass = RARITY_COLOR[card.rarity] ?? 'bg-gray-100 text-gray-600';
+  const rarityClass = RARITY_COLOR[card.rarity.toLowerCase()] ?? 'bg-gray-100 text-gray-600';
 
   return (
     <div

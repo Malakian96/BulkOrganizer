@@ -87,6 +87,3 @@ export interface CardResponseDTO {
   updatedAt: string;
 }
 
-export type CreateCardDTO = z.infer<typeof createCardSchema>;
-export type BulkEditDTO = z.infer<typeof bulkEditSchema>;
-export type RemoveCardsDTO = z.infer<typeof removeCardsSchema>;

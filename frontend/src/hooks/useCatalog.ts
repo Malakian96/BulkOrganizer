@@ -1,56 +1,32 @@
-import { useState, useEffect, useCallback } from 'react';
-import { CatalogCard, CatalogFilter, CatalogPage, getCatalogCards, getCatalogSets } from '../api/catalogApi';
+import { useState, useEffect } from 'react';
+import { CatalogCard, getCatalogCards, getCatalogSets } from '../api/catalogApi';
 
 export interface UseCatalogReturn {
-  cards: CatalogCard[];
-  total: number;
-  page: number;
-  totalPages: number;
-  loading: boolean;
-  error: string | null;
-  filter: CatalogFilter;
+  bySet: Map<string, CatalogCard[]>;
   sets: string[];
-  setFilter: (f: Partial<CatalogFilter>) => void;
-  goToPage: (p: number) => void;
+  loading: boolean;
 }
 
 export function useCatalog(): UseCatalogReturn {
-  const [result, setResult] = useState<CatalogPage>({ cards: [], total: 0, page: 1, totalPages: 0 });
-  const [filter, setFilterState] = useState<CatalogFilter>({ page: 1, limit: 48 });
+  const [bySet, setBySet] = useState<Map<string, CatalogCard[]>>(new Map());
   const [sets, setSets] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    void getCatalogSets().then(setSets);
+    let cancelled = false;
+    void (async () => {
+      const rawSets = await getCatalogSets();
+      if (cancelled) return;
+      const pages = await Promise.all(rawSets.map(s => getCatalogCards({ set: s, limit: 2000 })));
+      if (cancelled) return;
+      const map = new Map<string, CatalogCard[]>();
+      rawSets.forEach((s, i) => map.set(s, pages[i].cards));
+      setSets(rawSets);
+      setBySet(map);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    setLoading(true);
-    void getCatalogCards(filter)
-      .then((r) => { setResult(r); setError(null); })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed to load catalog'))
-      .finally(() => setLoading(false));
-  }, [filter]);
-
-  const setFilter = useCallback((partial: Partial<CatalogFilter>) => {
-    setFilterState((prev) => ({ ...prev, ...partial, page: 1 }));
-  }, []);
-
-  const goToPage = useCallback((p: number) => {
-    setFilterState((prev) => ({ ...prev, page: p }));
-  }, []);
-
-  return {
-    cards: result.cards,
-    total: result.total,
-    page: result.page,
-    totalPages: result.totalPages,
-    loading,
-    error,
-    filter,
-    sets,
-    setFilter,
-    goToPage,
-  };
+  return { bySet, sets, loading };
 }

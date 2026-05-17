@@ -29,7 +29,8 @@ export interface CatalogFilter {
   colors?: string[];
 }
 
-function docToCard(d: ReturnType<typeof toPlain>): CatalogCard {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function docToCard(d: any): CatalogCard {
   return {
     cardId: d.cardId as string,
     name: d.name as string,
@@ -51,9 +52,6 @@ function docToCard(d: ReturnType<typeof toPlain>): CatalogCard {
     banned: (d.banned as boolean) ?? false,
   };
 }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toPlain(d: any) { return d; }
 
 function buildQuery(filter?: CatalogFilter): Record<string, unknown> {
   const query: Record<string, unknown> = {};
@@ -100,6 +98,34 @@ export const mongoCatalogService = {
   async getSets(): Promise<string[]> {
     const sets = await CatalogModel.distinct('set').exec();
     return (sets as string[]).filter(Boolean).sort();
+  },
+
+  async findByCardId(cardId: string): Promise<CatalogCard | null> {
+    const doc = await CatalogModel.findOne({ cardId }).lean().exec();
+    return doc ? docToCard(doc) : null;
+  },
+
+  // Flexible lookup for OCR results — tries common cardId formats the scraper may use
+  async findBySetAndNumber(setAbbr: string, number: string): Promise<CatalogCard | null> {
+    const n = parseInt(number, 10); // strip leading zeros: "046" → 46
+    const candidates = [
+      `${setAbbr}-${number}`,       // SFD-046
+      `${setAbbr}-${n}`,            // SFD-46
+      `${setAbbr}${number}`,        // SFD046
+      `${setAbbr}${n}`,             // SFD46
+      `${setAbbr} ${number}`,       // SFD 046
+      `${setAbbr} • ${number}`,     // SFD • 046
+    ];
+    for (const id of candidates) {
+      const doc = await CatalogModel.findOne({ cardId: id }).lean().exec();
+      if (doc) return docToCard(doc);
+    }
+    // Last resort: regex match within the set
+    const doc = await CatalogModel.findOne({
+      setAbbr,
+      cardId: { $regex: String(n) },
+    }).lean().exec();
+    return doc ? docToCard(doc) : null;
   },
 
   async count(): Promise<number> {

@@ -3,20 +3,20 @@ import { CatalogCard } from './api/catalogApi';
 
 // ── Design tokens (mirrors styles.css domain/rarity variables) ──────────
 export const DOMAINS = [
-  { id: 'body',  name: 'Body',  color: '#6b8c5a', glyph: '土', subtitle: 'Earth' },
-  { id: 'mind',  name: 'Mind',  color: '#4a6b8c', glyph: '水', subtitle: 'Water' },
-  { id: 'calm',  name: 'Calm',  color: '#7a9aa8', glyph: '風', subtitle: 'Wind' },
-  { id: 'chaos', name: 'Chaos', color: '#b8553a', glyph: '炎', subtitle: 'Fire' },
-  { id: 'order', name: 'Order', color: '#b88a3a', glyph: '光', subtitle: 'Light' },
-  { id: 'fury',  name: 'Fury',  color: '#8c3a55', glyph: '雷', subtitle: 'Thunder' },
+  { id: 'body',  name: 'Body',  color: '#c07828', glyph: '土', subtitle: 'Earth' },
+  { id: 'mind',  name: 'Mind',  color: '#3a6a9c', glyph: '水', subtitle: 'Water' },
+  { id: 'calm',  name: 'Calm',  color: '#4a7a55', glyph: '風', subtitle: 'Wind' },
+  { id: 'chaos', name: 'Chaos', color: '#7c3a92', glyph: '炎', subtitle: 'Fire' },
+  { id: 'order', name: 'Order', color: '#b8a030', glyph: '光', subtitle: 'Light' },
+  { id: 'fury',  name: 'Fury',  color: '#c4322a', glyph: '雷', subtitle: 'Thunder' },
 ] as const;
 
 export const RARITIES = [
   { id: 'common',    name: 'Common',    color: '#6b5d52' },
   { id: 'uncommon',  name: 'Uncommon',  color: '#4a6b8c' },
   { id: 'rare',      name: 'Rare',      color: '#8b6b2a' },
-  { id: 'epic',      name: 'Epic',      color: '#6b3a8c' },
-  { id: 'legendary', name: 'Legendary', color: '#c4322a' },
+  { id: 'epic',        name: 'Epic',        color: '#6b3a8c' },
+  { id: 'overnumbered', name: 'Overnumbered', color: '#c4322a' },
 ] as const;
 
 export const MOCK_DECKS = [
@@ -56,13 +56,19 @@ export interface DesignCard {
 const COLOR_DOMAIN: Record<string, string> = {
   // Explicit domain IDs pass through
   body: 'body', mind: 'mind', calm: 'calm', chaos: 'chaos', order: 'order', fury: 'fury',
-  // Common color words
-  green: 'body', earth: 'body', nature: 'body', forest: 'body', grass: 'body',
-  blue: 'mind', water: 'mind', ocean: 'mind', navy: 'mind', azure: 'mind',
+  // Body (Orange) — physical strength
+  orange: 'body', amber: 'body', brown: 'body', earth: 'body', tan: 'body',
+  // Mind (Blue) — intelligence, water
+  blue: 'mind', water: 'mind', ocean: 'mind', navy: 'mind', azure: 'mind', indigo: 'mind',
+  // Calm (Green) — balance, nature, wind
+  green: 'calm', nature: 'calm', forest: 'calm', grass: 'calm', jade: 'calm',
   gray: 'calm', grey: 'calm', wind: 'calm', air: 'calm', cyan: 'calm', silver: 'calm',
-  red: 'chaos', fire: 'chaos', orange: 'chaos', crimson: 'chaos', scarlet: 'chaos',
+  // Chaos (Purple) — unpredictability
+  purple: 'chaos', violet: 'chaos', magenta: 'chaos', storm: 'chaos', thunder: 'chaos',
+  // Order (Yellow) — unity, light
   gold: 'order', yellow: 'order', white: 'order', light: 'order', sun: 'order',
-  purple: 'fury', thunder: 'fury', storm: 'fury', violet: 'fury', magenta: 'fury',
+  // Fury (Red) — aggression, fire
+  red: 'fury', fire: 'fury', crimson: 'fury', scarlet: 'fury',
 };
 
 function hashStr(s: string): number {

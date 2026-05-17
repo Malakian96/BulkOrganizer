@@ -1,12 +1,15 @@
-import { useState, useEffect, useMemo } from 'react';
-import { DesignCard, DOMAINS, RARITIES, mapCatalogCard } from '../../mockData';
-import { getCatalogCards, getCatalogSets } from '../../api/catalogApi';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { DesignCard, mapCatalogCard } from '../../mockData';
+import { CatalogCard } from '../../api/catalogApi';
 import { TCard } from '../TCard';
-import { Chip } from '../shared/Chip';
+import { FilterPanel } from '../FilterPanel';
 import { petalBurst } from '../../utils/petals';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 
 interface CatalogScreenProps {
+  catalogBySet: Map<string, CatalogCard[]>;
+  catalogSets: string[];
+  catalogLoading: boolean;
   search: string;
   collectionMap: Map<string, number>;
   wishlist: Set<string>;
@@ -16,49 +19,72 @@ interface CatalogScreenProps {
   onMarkOwned: (card: DesignCard) => void;
 }
 
-interface SetInfo {
-  id: string;
-  name: string;
-  year: string;
-}
+const PAGE_SIZE = 80;
 
-function buildSetInfo(abbr: string): SetInfo {
-  return { id: abbr, name: abbr, year: '' };
-}
+export function CatalogScreen({
+  catalogBySet,
+  catalogSets,
+  catalogLoading,
+  search,
+  collectionMap,
+  wishlist,
+  favorites,
+  onCardClick,
+  onToggleFav,
+  onMarkOwned,
+}: CatalogScreenProps) {
+  const [activeSet, setActiveSet] = useState('');
+  const [filters, setFilters] = useState<{
+    domains: string[];
+    rarities: string[];
+    types: string[];
+    costRange: [number, number];
+    showMissing: boolean;
+    showOwned: boolean;
+  }>({ domains: [], rarities: [], types: [], costRange: [0, 12], showMissing: true, showOwned: true });
+  const [displayLimit, setDisplayLimit] = useState(PAGE_SIZE);
 
-export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCardClick, onToggleFav, onMarkOwned }: CatalogScreenProps) {
-  const [sets, setSets] = useState<SetInfo[]>([]);
-  const [activeSet, setActiveSet] = useState<string>('');
-  const [allSetCards, setAllSetCards] = useState<DesignCard[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState<{ domains: string[]; rarities: string[]; showMissing: boolean; showOwned: boolean }>({
-    domains: [], rarities: [], showMissing: true, showOwned: true,
-  });
-  const [limit, setLimit] = useState(80);
-
-  // Load set list
+  // Set the active set once catalog data arrives
   useEffect(() => {
-    void getCatalogSets().then(rawSets => {
-      const infos = rawSets.map(buildSetInfo);
-      setSets(infos);
-      if (infos.length > 0) setActiveSet(infos[0].id);
-    });
+    if (catalogSets.length > 0 && !activeSet) setActiveSet(catalogSets[0]);
+  }, [catalogSets, activeSet]);
+
+  // Attach scroll listener to the .content container — direct querySelector, no DOM walk
+  useEffect(() => {
+    const container = document.querySelector<HTMLElement>('.content');
+    if (!container) return;
+    const onScroll = () => {
+      const remaining = container.scrollHeight - container.scrollTop - container.clientHeight;
+      if (remaining < 300) setDisplayLimit(l => l + PAGE_SIZE);
+    };
+    container.addEventListener('scroll', onScroll, { passive: true });
+    return () => container.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Load cards for active set
+  // Reset display limit and scroll to top when set, filters, or search changes
   useEffect(() => {
-    if (!activeSet) return;
-    setLoading(true);
-    setLimit(80);
-    void getCatalogCards({ set: activeSet, limit: 500 }).then(page => {
-      const mapped = page.cards.map(c =>
-        mapCatalogCard(c, collectionMap.get(c.cardId) ?? 0, wishlist, favorites)
-      );
-      setAllSetCards(mapped);
-    }).finally(() => setLoading(false));
-  }, [activeSet]); // eslint-disable-line react-hooks/exhaustive-deps
+    setDisplayLimit(PAGE_SIZE);
+    const container = document.querySelector<HTMLElement>('.content');
+    if (container) container.scrollTop = 0;
+  }, [activeSet, filters, search]);
 
-  // Re-derive owned status when collectionMap/prefs change
+  // Per-set stats — keyed by set id, independent of activeSet
+  const setTabStats = useMemo(
+    () => catalogSets.map(id => {
+      const cards = catalogBySet.get(id) ?? [];
+      const total = cards.length;
+      const owned = cards.filter(c => (collectionMap.get(c.cardId) ?? 0) > 0).length;
+      return { id, name: id, total, owned, pct: total ? owned / total : 0 };
+    }),
+    [catalogSets, catalogBySet, collectionMap],
+  );
+
+  // Mapped cards for the active set only
+  const allSetCards = useMemo(() => {
+    const cards = catalogBySet.get(activeSet) ?? [];
+    return cards.map(c => mapCatalogCard(c, collectionMap.get(c.cardId) ?? 0, wishlist, favorites));
+  }, [catalogBySet, activeSet, collectionMap, wishlist, favorites]);
+
   const setCards = useMemo(() => {
     const base = allSetCards.map(c => ({
       ...c,
@@ -71,39 +97,36 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
     if (q) r = r.filter(c => c.name.toLowerCase().includes(q) || (c.num ?? '').includes(q));
     if (filters.domains.length) r = r.filter(c => filters.domains.includes(c.domain));
     if (filters.rarities.length) r = r.filter(c => filters.rarities.includes(c.rarity));
+    if (filters.types.length) r = r.filter(c => filters.types.some(t => c.type.toLowerCase() === t.toLowerCase()));
+    const [lo, hi] = filters.costRange;
+    if (lo > 0 || hi < 12) r = r.filter(c => { const cost = c.cost ?? 0; return cost >= lo && cost <= hi; });
     if (!filters.showMissing) r = r.filter(c => c.owned > 0);
     if (!filters.showOwned) r = r.filter(c => c.owned === 0);
     return r;
   }, [allSetCards, collectionMap, wishlist, favorites, search, filters]);
 
-  const setStats = useMemo(() => sets.map(s => {
-    const all = allSetCards;
-    const owned = all.filter(c => (collectionMap.get(c.cardId) ?? 0) > 0).length;
-    return { ...s, owned, total: all.length, pct: all.length ? owned / all.length : 0 };
-  }), [sets, allSetCards, collectionMap]);
-
-  const currentSetInfo = sets.find(s => s.id === activeSet);
-  const ownedInSet = setCards.filter(c => c.owned > 0).length;
-  const missingInSet = setCards.length - ownedInSet;
-  const visible = setCards.slice(0, limit);
-
-  const toggle = (key: 'domains' | 'rarities', val: string) => {
+  const toggle = useCallback((key: 'domains' | 'rarities' | 'types', val: string) => {
     setFilters(f => {
-      const cur = f[key] as string[];
+      const cur = f[key];
       return { ...f, [key]: cur.includes(val) ? cur.filter(x => x !== val) : [...cur, val] };
     });
-  };
+  }, []);
+
+  const activeTabStats = setTabStats.find(s => s.id === activeSet);
+  const ownedInSet = setCards.filter(c => c.owned > 0).length;
+  const missingInSet = setCards.length - ownedInSet;
+  const visible = setCards.slice(0, displayLimit);
 
   return (
-    <>
+    <div>
       <div className="section-head">
         <div><h2>Catalog</h2></div>
-        <div className="meta">{sets.length} sets</div>
+        <div className="meta">{catalogSets.length} sets</div>
       </div>
 
-      {sets.length > 0 && (
+      {catalogSets.length > 0 && (
         <div className="set-tabs">
-          {setStats.map(s => (
+          {setTabStats.map(s => (
             <button
               key={s.id}
               className={'set-tab' + (activeSet === s.id ? ' active' : '')}
@@ -121,12 +144,12 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
         </div>
       )}
 
-      {currentSetInfo && (
+      {activeTabStats && (
         <div className="catalog-bar">
           <div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600 }}>{currentSetInfo.name}</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600 }}>{activeTabStats.name}</div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--ink-500)', letterSpacing: '.14em', textTransform: 'uppercase', marginTop: 2 }}>
-              {currentSetInfo.id} · {setCards.length} printed
+              {activeTabStats.id} · {setCards.length} printed
             </div>
           </div>
           <div className="totals">
@@ -136,57 +159,52 @@ export function CatalogScreen({ search, collectionMap, wishlist, favorites, onCa
         </div>
       )}
 
-      <div className="filterbar">
-        <div className="filter-group">
-          <span className="filter-label">Domain</span>
-          {DOMAINS.map(d => (
-            <Chip key={d.id} on={filters.domains.includes(d.id)} dot={d.color} onClick={() => toggle('domains', d.id)}>{d.name}</Chip>
-          ))}
-        </div>
-        <div className="filter-group">
-          <span className="filter-label">Rarity</span>
-          {RARITIES.map(r => (
-            <Chip key={r.id} on={filters.rarities.includes(r.id)} dot={r.color} onClick={() => toggle('rarities', r.id)}>{r.name}</Chip>
-          ))}
-        </div>
-        <div className="filter-group" style={{ borderRight: 0 }}>
-          <span className="filter-label">Show</span>
-          <Chip on={filters.showOwned} onClick={() => setFilters(f => ({ ...f, showOwned: !f.showOwned }))}>Owned</Chip>
-          <Chip on={filters.showMissing} onClick={() => setFilters(f => ({ ...f, showMissing: !f.showMissing }))}>Missing</Chip>
+      <div className="screen-layout">
+        <FilterPanel
+          selectedDomains={filters.domains}
+          onToggleDomain={d => toggle('domains', d)}
+          selectedRarities={filters.rarities}
+          onToggleRarity={r => toggle('rarities', r)}
+          selectedTypes={filters.types}
+          onToggleType={t => toggle('types', t)}
+          costRange={filters.costRange}
+          onCostRangeChange={r => setFilters(f => ({ ...f, costRange: r }))}
+          showOwned={filters.showOwned}
+          onToggleShowOwned={() => setFilters(f => ({ ...f, showOwned: !f.showOwned }))}
+          showMissing={filters.showMissing}
+          onToggleShowMissing={() => setFilters(f => ({ ...f, showMissing: !f.showMissing }))}
+        />
+
+        <div className="screen-main">
+          {catalogLoading ? (
+            <LoadingSpinner />
+          ) : setCards.length === 0 ? (
+            <div className="empty">
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 36, color: 'var(--ink-300)' }}>無</div>
+              <h3>Nothing in this slice</h3>
+              <p>{catalogSets.length === 0 ? 'Run the scraper to populate the catalog.' : 'Adjust filters or pick another set.'}</p>
+            </div>
+          ) : (
+            <>
+              <div className="card-grid">
+                {visible.map(c => (
+                  <TCard
+                    key={c.id} card={c}
+                    missing={c.owned === 0}
+                    selected={false}
+                    onClick={onCardClick}
+                    onToggleFav={(card, el) => { onToggleFav(card, el); petalBurst(el, 4); }}
+                    onMarkOwned={(card, el) => { onMarkOwned(card); petalBurst(el, 7); }}
+                  />
+                ))}
+              </div>
+              {displayLimit < setCards.length && (
+                <div style={{ height: 1, marginBottom: 32 }} aria-hidden="true" />
+              )}
+            </>
+          )}
         </div>
       </div>
-
-      {loading ? (
-        <LoadingSpinner />
-      ) : setCards.length === 0 ? (
-        <div className="empty">
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 36, color: 'var(--ink-300)' }}>無</div>
-          <h3>Nothing in this slice</h3>
-          <p>{sets.length === 0 ? 'Run the scraper to populate the catalog.' : 'Adjust filters or pick another set.'}</p>
-        </div>
-      ) : (
-        <>
-          <div className="card-grid">
-            {visible.map(c => (
-              <TCard
-                key={c.id} card={c}
-                missing={c.owned === 0}
-                selected={false}
-                onClick={onCardClick}
-                onToggleFav={(card, el) => { onToggleFav(card, el); petalBurst(el, 4); }}
-                onMarkOwned={(card, el) => { onMarkOwned(card); petalBurst(el, 7); }}
-              />
-            ))}
-          </div>
-          {setCards.length > limit && (
-            <div style={{ textAlign: 'center', padding: '22px 0' }}>
-              <button className="btn" onClick={() => setLimit(l => l + 80)}>
-                Show {Math.min(80, setCards.length - limit)} more · {setCards.length - limit} remaining
-              </button>
-            </div>
-          )}
-        </>
-      )}
-    </>
+    </div>
   );
 }
