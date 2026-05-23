@@ -4,18 +4,18 @@ import { CardMapper } from './CardMapper';
 import { CardModel } from './CardDocument';
 
 export class MongoCardRepository implements ICardRepository {
-  async findById(id: string): Promise<Card | null> {
-    const doc = await CardModel.findById(id).exec();
+  async findById(id: string, userId: string): Promise<Card | null> {
+    const doc = await CardModel.findOne({ _id: id, userId }).exec();
     return doc ? CardMapper.toDomain(doc) : null;
   }
 
-  async findAll(filter?: CardFilter): Promise<Card[]> {
-    const query: Record<string, unknown> = {};
-    if (filter?.name) query.name = { $regex: filter.name, $options: 'i' };
-    if (filter?.set) query.set = filter.set;
-    if (filter?.type) query.type = filter.type;
-    if (filter?.rarity) query.rarity = filter.rarity;
-    if (filter?.colors?.length) query.colors = { $in: filter.colors };
+  async findAll(filter: CardFilter): Promise<Card[]> {
+    const query: Record<string, unknown> = { userId: filter.userId };
+    if (filter.name)           query.name   = { $regex: filter.name, $options: 'i' };
+    if (filter.set)            query.set    = filter.set;
+    if (filter.type)           query.type   = filter.type;
+    if (filter.rarity)         query.rarity = filter.rarity;
+    if (filter.colors?.length) query.colors = { $in: filter.colors };
     const docs = await CardModel.find(query).sort({ createdAt: -1 }).exec();
     return docs.map(CardMapper.toDomain);
   }
@@ -29,11 +29,11 @@ export class MongoCardRepository implements ICardRepository {
     ).exec();
   }
 
-  async delete(id: string): Promise<void> {
-    await CardModel.findByIdAndDelete(id).exec();
+  async delete(id: string, userId: string): Promise<void> {
+    await CardModel.findOneAndDelete({ _id: id, userId }).exec();
   }
 
-  async deleteMany(ids: string[]): Promise<void> {
-    await CardModel.deleteMany({ _id: { $in: ids } }).exec();
+  async deleteMany(ids: string[], userId: string): Promise<void> {
+    await CardModel.deleteMany({ _id: { $in: ids }, userId }).exec();
   }
 }

@@ -42,7 +42,7 @@ describe('CardName', () => {
 
 describe('Card.create', () => {
   it('creates a card with defaults', () => {
-    const card = Card.create({ cardId: 'SFD-001', name: 'Test Card' });
+    const card = Card.create({ userId: 'test-user-id', cardId: 'SFD-001', name: 'Test Card' });
     expect(card.cardId).toBe('SFD-001');
     expect(card.name).toBe('Test Card');
     expect(card.quantity).toBe(1);
@@ -53,7 +53,7 @@ describe('Card.create', () => {
   it('stores all canonical Riftbound rarities without error', () => {
     const rarities = ['common', 'uncommon', 'rare', 'epic', 'overnumbered'];
     for (const rarity of rarities) {
-      const card = Card.create({ cardId: 'OGN-001', name: 'Card', rarity });
+      const card = Card.create({ userId: 'test-user-id', cardId: 'OGN-001', name: 'Card', rarity });
       expect(card.rarity).toBe(rarity);
     }
   });
@@ -61,7 +61,7 @@ describe('Card.create', () => {
   it('stores all canonical Riftbound types without error', () => {
     const types = ['Champion', 'Unit', 'Spell', 'Gear', 'Rune', 'Relic', 'Battlefield'];
     for (const type of types) {
-      const card = Card.create({ cardId: 'OGN-001', name: 'Card', type });
+      const card = Card.create({ userId: 'test-user-id', cardId: 'OGN-001', name: 'Card', type });
       expect(card.type).toBe(type);
     }
   });
@@ -69,23 +69,23 @@ describe('Card.create', () => {
 
 describe('Card.update', () => {
   it('rejects negative quantity', () => {
-    const card = Card.create({ cardId: 'SFD-001', name: 'Poro Snax' });
+    const card = Card.create({ userId: 'test-user-id', cardId: 'SFD-001', name: 'Poro Snax' });
     expect(() => card.update({ quantity: -1 })).toThrow(DomainError);
   });
 
   it('allows quantity of 0', () => {
-    const card = Card.create({ cardId: 'SFD-001', name: 'Poro Snax', quantity: 2 });
+    const card = Card.create({ userId: 'test-user-id', cardId: 'SFD-001', name: 'Poro Snax', quantity: 2 });
     card.update({ quantity: 0 });
     expect(card.quantity).toBe(0);
   });
 
   it('rejects negative foil quantity', () => {
-    const card = Card.create({ cardId: 'SFD-001', name: 'Poro Snax' });
+    const card = Card.create({ userId: 'test-user-id', cardId: 'SFD-001', name: 'Poro Snax' });
     expect(() => card.update({ foilQuantity: -1 })).toThrow(DomainError);
   });
 
   it('updates multiple fields at once', () => {
-    const card = Card.create({ cardId: 'SFD-001', name: 'Poro Snax' });
+    const card = Card.create({ userId: 'test-user-id', cardId: 'SFD-001', name: 'Poro Snax' });
     card.update({ quantity: 3, notes: 'Trade copy', rarity: 'epic' });
     expect(card.quantity).toBe(3);
     expect(card.notes).toBe('Trade copy');

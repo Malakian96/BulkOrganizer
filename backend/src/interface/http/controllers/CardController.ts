@@ -45,6 +45,7 @@ export class CardController {
     try {
       const { name, set, type, rarity, colors } = req.query as Record<string, string | undefined>;
       const cards = await this.getCardsHandler.execute({
+        userId: req.userId,
         name,
         set,
         type,
@@ -59,7 +60,7 @@ export class CardController {
 
   createCard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const card = await this.addCardHandler.execute(req.body);
+      const card = await this.addCardHandler.execute({ userId: req.userId, ...req.body });
       res.status(201).json(toDTO(card));
     } catch (e) {
       next(e);
@@ -68,7 +69,7 @@ export class CardController {
 
   removeCards = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      await this.removeCardHandler.execute({ ids: req.body.ids });
+      await this.removeCardHandler.execute({ userId: req.userId, ids: req.body.ids });
       res.status(204).send();
     } catch (e) {
       next(e);
@@ -77,7 +78,7 @@ export class CardController {
 
   bulkEditCards = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const cards = await this.bulkEditHandler.execute(req.body);
+      const cards = await this.bulkEditHandler.execute({ userId: req.userId, ...req.body });
       res.json(cards.map(toDTO));
     } catch (e) {
       next(e);

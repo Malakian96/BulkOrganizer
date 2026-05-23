@@ -1,6 +1,7 @@
 import { Card } from './Card';
 
 export interface CardFilter {
+  userId: string;
   name?: string;
   set?: string;
   type?: string;
@@ -9,9 +10,9 @@ export interface CardFilter {
 }
 
 export interface ICardRepository {
-  findById(id: string): Promise<Card | null>;
-  findAll(filter?: CardFilter): Promise<Card[]>;
+  findById(id: string, userId: string): Promise<Card | null>;
+  findAll(filter: CardFilter): Promise<Card[]>;
   save(card: Card): Promise<void>;
-  delete(id: string): Promise<void>;
-  deleteMany(ids: string[]): Promise<void>;
+  delete(id: string, userId: string): Promise<void>;
+  deleteMany(ids: string[], userId: string): Promise<void>;
 }

@@ -7,6 +7,7 @@ export class CardMapper {
   static toDomain(doc: ICardDocument): Card {
     return Card.reconstitute({
       id: CardId.from(doc._id as string),
+      userId: doc.userId,
       cardId: doc.cardId,
       name: CardName.create(doc.name),
       effect: doc.effect,
@@ -33,7 +34,8 @@ export class CardMapper {
 
   static toPersistence(card: Card): Record<string, unknown> {
     return {
-      _id: card.id,
+      _id:    card.id,
+      userId: card.userId,
       cardId: card.cardId,
       name: card.name,
       effect: card.effect,

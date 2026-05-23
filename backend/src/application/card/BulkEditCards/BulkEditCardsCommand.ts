@@ -1,4 +1,5 @@
 export interface BulkEditCardsCommand {
+  userId: string;
   ids: string[];
   patch: Partial<{
     quantity: number;
