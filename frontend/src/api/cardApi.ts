@@ -1,12 +1,24 @@
 import { BulkEditPayload, CardDTO, CreateCardPayload, RemoveCardsPayload } from '../types/card';
+import { getStoredToken } from '../context/AuthContext';
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
 
+function getAuthHeaders(): Record<string, string> {
+  const token = getStoredToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     ...init,
   });
+  if (res.status === 401) {
+    localStorage.removeItem('rift-auth-token');
+    localStorage.removeItem('rift-auth-user');
+    window.location.reload();
+    return undefined as unknown as T;
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({})) as { error?: string };
     throw new Error(body.error ?? `HTTP ${res.status}`);

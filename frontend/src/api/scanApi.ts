@@ -1,3 +1,5 @@
+import { getStoredToken } from '../context/AuthContext';
+
 const BASE = import.meta.env.VITE_API_URL ?? '';
 
 export interface ScannedCard {
@@ -32,9 +34,13 @@ export interface ScanResult {
 }
 
 export async function scanCard(imageBase64: string): Promise<ScanResult> {
+  const token = getStoredToken();
   const res = await fetch(`${BASE}/api/scan`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify({ image: imageBase64 }),
   });
   if (!res.ok) throw new Error(`Scan failed: ${res.status}`);

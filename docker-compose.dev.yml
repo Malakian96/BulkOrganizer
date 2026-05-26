@@ -21,6 +21,8 @@ services:
       MONGODB_URI: mongodb://mongodb:27017/bulk_organizer
       NODE_ENV: development
       CORS_ORIGIN: http://localhost:5173
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      JWT_SECRET: ${JWT_SECRET}
 
   frontend:
     build:
@@ -34,6 +36,7 @@ services:
       - backend
     environment:
       VITE_API_URL: http://localhost:4000
+      VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
 
 volumes:
   mongo_data_dev:

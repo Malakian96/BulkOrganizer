@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useCards } from './hooks/useCards';
 import { useLocalPrefs } from './hooks/useLocalPrefs';
+import { useAuth } from './context/AuthContext';
 import { DesignCard, mapCardDTO } from './mockData';
 import { petalBurst } from './utils/petals';
 import { Icon } from './components/shared/Icon';
@@ -12,6 +13,7 @@ import { ScannerScreen } from './components/screens/ScannerScreen';
 import { DecksScreen } from './components/screens/DecksScreen';
 import { WishlistScreen } from './components/screens/WishlistScreen';
 import { StatsScreen } from './components/screens/StatsScreen';
+import { LoginScreen } from './components/screens/LoginScreen';
 import { CreateCardPayload } from './types/card';
 
 type Tab = 'collection' | 'catalog' | 'scanner' | 'decks' | 'wishlist' | 'stats';
@@ -38,6 +40,7 @@ const NAV_SECTIONS = [
 const MOCK_BINDERS = ['Core Set', 'Promo Vault', 'Trade Pile'];
 
 export default function App() {
+  const { user, signOut } = useAuth();
   const [tab, setTab]               = useState<Tab>('collection');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [theme, setTheme]           = useState<'paper' | 'night'>('paper');
@@ -50,6 +53,8 @@ export default function App() {
 
   const { cards: rawCards, addCard, editCards, deleteCards, refresh } = useCards();
   const { wishlist, favorites, toggleWishlist, toggleFavorite, setWishlistOn } = useLocalPrefs();
+
+  if (!user) return <LoginScreen />;
 
   // Apply theme to document
   useEffect(() => {
@@ -266,15 +271,27 @@ export default function App() {
 
         {/* Sidebar footer */}
         <div className="sidebar-foot">
-          <div className="avatar">A</div>
+          {user.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt={user.name}
+              className="avatar"
+              style={{ borderRadius: '50%', objectFit: 'cover', width: 32, height: 32 }}
+            />
+          ) : (
+            <div className="avatar">{user.name.charAt(0).toUpperCase()}</div>
+          )}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Collector</div>
+            <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name}</div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-500)', letterSpacing: '.1em' }}>
               {rawCards.length} cards owned
             </div>
           </div>
           <button className="btn ghost sq sm" onClick={() => void refresh()} title="Sync">
             <Icon name="download" size={14} />
+          </button>
+          <button className="btn ghost sq sm" onClick={signOut} title="Sign out">
+            <Icon name="x" size={14} />
           </button>
         </div>
       </aside>

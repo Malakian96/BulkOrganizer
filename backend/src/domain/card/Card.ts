@@ -4,6 +4,7 @@ import { CardName } from './CardName';
 
 export interface CardProps {
   id: CardId;
+  userId: string;
   cardId: string;          // Official game ID e.g. "OGN-179"
   name: CardName;
   effect: string;
@@ -36,6 +37,7 @@ export class Card {
   }
 
   static create(params: {
+    userId: string;
     cardId: string;
     name: string;
     effect?: string;
@@ -58,6 +60,7 @@ export class Card {
   }): Card {
     return new Card({
       id: CardId.create(),
+      userId: params.userId,
       cardId: params.cardId,
       name: CardName.create(params.name),
       effect: params.effect ?? '',
@@ -87,6 +90,7 @@ export class Card {
   }
 
   get id(): string { return this.props.id.toString(); }
+  get userId(): string { return this.props.userId; }
   get cardId(): string { return this.props.cardId; }
   get name(): string { return this.props.name.toString(); }
   get effect(): string { return this.props.effect; }

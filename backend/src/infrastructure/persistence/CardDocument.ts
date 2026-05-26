@@ -2,6 +2,7 @@ import { Schema, model } from 'mongoose';
 
 export interface ICardDocument {
   _id: string;
+  userId: string;
   cardId: string;
   name: string;
   effect: string;
@@ -27,7 +28,8 @@ export interface ICardDocument {
 
 const cardSchema = new Schema<ICardDocument>(
   {
-    _id: { type: String, required: true },
+    _id:    { type: String, required: true },
+    userId: { type: String, required: true },
     cardId: { type: String, required: true },
     name: { type: String, required: true, trim: true, maxlength: 200 },
     effect: { type: String, default: '' },
@@ -55,6 +57,8 @@ const cardSchema = new Schema<ICardDocument>(
   }
 );
 
+cardSchema.index({ userId: 1 });
+cardSchema.index({ userId: 1, createdAt: -1 });
 cardSchema.index({ cardId: 1 });
 cardSchema.index({ name: 1 });
 cardSchema.index({ set: 1 });

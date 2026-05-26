@@ -1,4 +1,5 @@
 export interface AddCardCommand {
+  userId: string;
   cardId: string;
   name: string;
   effect?: string;

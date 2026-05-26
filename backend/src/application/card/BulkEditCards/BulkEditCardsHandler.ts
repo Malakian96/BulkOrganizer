@@ -12,7 +12,7 @@ export class BulkEditCardsHandler {
 
     const results: Card[] = [];
     for (const id of cmd.ids) {
-      const card = await this.repo.findById(id);
+      const card = await this.repo.findById(id, cmd.userId);
       if (!card) throw new ApplicationError(`Card not found: ${id}`);
       card.update(cmd.patch);
       await this.repo.save(card);
