@@ -1,4 +1,4 @@
-const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+import { API_BASE as BASE } from './base';
 
 export interface CatalogCard {
   cardId: string;

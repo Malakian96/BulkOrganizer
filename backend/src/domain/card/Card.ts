@@ -2,7 +2,7 @@ import { DomainError } from '../shared/DomainError';
 import { CardId } from './CardId';
 import { CardName } from './CardName';
 
-export interface CardProps {
+interface CardProps {
   id: CardId;
   cardId: string;          // Official game ID e.g. "OGN-179"
   name: CardName;
@@ -13,6 +13,7 @@ export interface CardProps {
   type: string;            // "Champion" | "Unit" | "Spell" | "Gear" | "Rune" | "Relic" | "Battlefield"
   supertype: string | null;
   might: number | null;
+  power: number | null;
   tags: string[];          // e.g. ["Mech", "Piltover"]
   set: string;             // "Origins"
   rarity: string;          // "common" | "uncommon" | "rare" | "epic" | "overnumbered"
@@ -45,6 +46,7 @@ export class Card {
     type?: string;
     supertype?: string | null;
     might?: number | null;
+    power?: number | null;
     tags?: string[];
     set?: string;
     rarity?: string;
@@ -67,6 +69,7 @@ export class Card {
       type: params.type ?? '',
       supertype: params.supertype ?? null,
       might: params.might ?? null,
+      power: params.power ?? null,
       tags: params.tags ?? [],
       set: params.set ?? '',
       rarity: params.rarity ?? '',
@@ -96,6 +99,7 @@ export class Card {
   get type(): string { return this.props.type; }
   get supertype(): string | null { return this.props.supertype; }
   get might(): number | null { return this.props.might; }
+  get power(): number | null { return this.props.power; }
   get tags(): string[] { return [...this.props.tags]; }
   get set(): string { return this.props.set; }
   get rarity(): string { return this.props.rarity; }
@@ -120,6 +124,7 @@ export class Card {
     type: string;
     supertype: string | null;
     might: number | null;
+    power: number | null;
     tags: string[];
     set: string;
     rarity: string;
@@ -144,6 +149,7 @@ export class Card {
     if (params.type !== undefined) this.props.type = params.type;
     if (params.supertype !== undefined) this.props.supertype = params.supertype;
     if (params.might !== undefined) this.props.might = params.might;
+    if (params.power !== undefined) this.props.power = params.power;
     if (params.tags !== undefined) this.props.tags = params.tags;
     if (params.set !== undefined) this.props.set = params.set;
     if (params.rarity !== undefined) this.props.rarity = params.rarity;

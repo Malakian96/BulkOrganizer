@@ -10,6 +10,7 @@ export const createCardSchema = z.object({
   type: z.string().optional(),
   supertype: z.string().nullable().optional(),
   might: z.number().nullable().optional(),
+  power: z.number().nullable().optional(),
   tags: z.array(z.string()).optional(),
   set: z.string().optional(),
   rarity: z.string().optional(),
@@ -33,6 +34,7 @@ const patchSchema = z.object({
   type: z.string().optional(),
   supertype: z.string().nullable().optional(),
   might: z.number().nullable().optional(),
+  power: z.number().nullable().optional(),
   tags: z.array(z.string()).optional(),
   set: z.string().optional(),
   rarity: z.string().optional(),
@@ -73,6 +75,7 @@ export interface CardResponseDTO {
   type: string;
   supertype: string | null;
   might: number | null;
+  power: number | null;
   tags: string[];
   set: string;
   rarity: string;

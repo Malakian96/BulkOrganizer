@@ -1,4 +1,5 @@
 import { CatalogModel } from '../persistence/CatalogDocument';
+import { buildCardQuery } from '../persistence/buildCardQuery';
 
 export interface CatalogCard {
   cardId: string;
@@ -53,16 +54,6 @@ function docToCard(d: any): CatalogCard {
   };
 }
 
-function buildQuery(filter?: CatalogFilter): Record<string, unknown> {
-  const query: Record<string, unknown> = {};
-  if (filter?.name) query.name = { $regex: filter.name, $options: 'i' };
-  if (filter?.set) query.set = filter.set;
-  if (filter?.type) query.type = filter.type;
-  if (filter?.rarity) query.rarity = filter.rarity;
-  if (filter?.colors?.length) query.colors = { $in: filter.colors };
-  return query;
-}
-
 export const mongoCatalogService = {
   async search(q: string, limit = 10): Promise<CatalogCard[]> {
     if (!q.trim()) return [];
@@ -79,7 +70,7 @@ export const mongoCatalogService = {
     page = 1,
     limit = 48
   ): Promise<{ cards: CatalogCard[]; total: number; page: number; totalPages: number }> {
-    const query = buildQuery(filter);
+    const query = buildCardQuery(filter);
     const skip = (page - 1) * limit;
 
     const [docs, total] = await Promise.all([

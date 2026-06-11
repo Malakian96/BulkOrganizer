@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useCards } from './hooks/useCards';
 import { useLocalPrefs } from './hooks/useLocalPrefs';
-import { DesignCard, mapCardDTO } from './mockData';
+import { DesignCard, mapCardDTO, toCreateCardPayload } from './mockData';
 import { petalBurst } from './utils/petals';
 import { Icon } from './components/shared/Icon';
 import { CardDrawer } from './components/CardDrawer';
@@ -103,39 +103,13 @@ export default function App() {
       }
     } else {
       // catalog → add to collection
-      await addCard({
-        cardId: card.cardId,
-        name: card.name,
-        colors: [card.domain],
-        rarity: card.rarity,
-        type: card.type,
-        cost: card.cost ?? undefined,
-        quantity: qty,
-        set: card.set,
-        imageUrl: card.imageUrl,
-        effect: card.effect,
-        flavorText: card.flavorText,
-        tags: card.tags,
-      });
+      await addCard(toCreateCardPayload(card, qty));
     }
   }, [deleteCards, editCards, addCard]);
 
   // ── Mark owned (from catalog CTA) ───────────────────────────────────────
   const handleMarkOwned = useCallback(async (card: DesignCard) => {
-    await addCard({
-      cardId: card.cardId,
-      name: card.name,
-      colors: [card.domain],
-      rarity: card.rarity,
-      type: card.type,
-      cost: card.cost ?? undefined,
-      quantity: 1,
-      set: card.set,
-      imageUrl: card.imageUrl,
-      effect: card.effect,
-      flavorText: card.flavorText,
-      tags: card.tags,
-    });
+    await addCard(toCreateCardPayload(card, 1));
     setWishlistOn(card.cardId);
   }, [addCard, setWishlistOn]);
 
@@ -144,17 +118,7 @@ export default function App() {
     if (card.sourceType === 'collection') {
       await editCards([card.id], { quantity: card.owned + 1 });
     } else {
-      await addCard({
-        cardId: card.cardId,
-        name: card.name,
-        colors: [card.domain],
-        rarity: card.rarity,
-        type: card.type,
-        cost: card.cost ?? undefined,
-        quantity: 1,
-        set: card.set,
-        imageUrl: card.imageUrl,
-      });
+      await addCard(toCreateCardPayload(card, 1));
     }
   }, [editCards, addCard]);
 

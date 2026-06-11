@@ -2,6 +2,7 @@ import { Card } from '../../domain/card/Card';
 import { CardFilter, ICardRepository } from '../../domain/card/ICardRepository';
 import { CardMapper } from './CardMapper';
 import { CardModel } from './CardDocument';
+import { buildCardQuery } from './buildCardQuery';
 
 export class MongoCardRepository implements ICardRepository {
   async findById(id: string): Promise<Card | null> {
@@ -10,13 +11,7 @@ export class MongoCardRepository implements ICardRepository {
   }
 
   async findAll(filter?: CardFilter): Promise<Card[]> {
-    const query: Record<string, unknown> = {};
-    if (filter?.name) query.name = { $regex: filter.name, $options: 'i' };
-    if (filter?.set) query.set = filter.set;
-    if (filter?.type) query.type = filter.type;
-    if (filter?.rarity) query.rarity = filter.rarity;
-    if (filter?.colors?.length) query.colors = { $in: filter.colors };
-    const docs = await CardModel.find(query).sort({ createdAt: -1 }).exec();
+    const docs = await CardModel.find(buildCardQuery(filter)).sort({ createdAt: -1 }).exec();
     return docs.map(CardMapper.toDomain);
   }
 
@@ -27,10 +22,6 @@ export class MongoCardRepository implements ICardRepository {
       { $set: data },
       { upsert: true, new: true }
     ).exec();
-  }
-
-  async delete(id: string): Promise<void> {
-    await CardModel.findByIdAndDelete(id).exec();
   }
 
   async deleteMany(ids: string[]): Promise<void> {

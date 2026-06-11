@@ -11,6 +11,7 @@ export interface ICardDocument {
   type: string;
   supertype: string | null;
   might: number | null;
+  power: number | null;
   tags: string[];
   set: string;
   rarity: string;
@@ -37,6 +38,7 @@ const cardSchema = new Schema<ICardDocument>(
     type: { type: String, default: '' },
     supertype: { type: String, default: null },
     might: { type: Number, default: null },
+    power: { type: Number, default: null },
     tags: [{ type: String }],
     set: { type: String, default: '' },
     rarity: { type: String, default: '' },

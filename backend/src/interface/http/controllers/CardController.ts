@@ -18,6 +18,7 @@ function toDTO(card: Card): CardResponseDTO {
     type: card.type,
     supertype: card.supertype,
     might: card.might,
+    power: card.power,
     tags: card.tags,
     set: card.set,
     rarity: card.rarity,

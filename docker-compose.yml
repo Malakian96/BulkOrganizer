@@ -29,6 +29,9 @@ services:
       - backend
     ports:
       - "80:80"
+    environment:
+      # Substituted into nginx.conf by the nginx image's envsubst template step
+      BACKEND_URL: http://backend:4000
 
 volumes:
   mongo_data:

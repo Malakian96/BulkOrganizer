@@ -34,6 +34,9 @@ services:
       - backend
     environment:
       VITE_API_URL: http://localhost:4000
+      # Vite's same-origin proxy must target the backend container, not the
+      # frontend container's own localhost
+      VITE_PROXY_TARGET: http://backend:4000
 
 volumes:
   mongo_data_dev:

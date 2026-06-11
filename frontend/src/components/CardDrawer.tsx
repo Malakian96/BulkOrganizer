@@ -4,6 +4,7 @@ import { CardArt } from './CardArt';
 import { Icon } from './shared/Icon';
 import { Stepper } from './shared/Stepper';
 import { petalBurst } from '../utils/petals';
+import { decodeHtmlEntities } from '../utils/html';
 
 interface CardDrawerProps {
   card: DesignCard | null;
@@ -104,10 +105,9 @@ export function CardDrawer({ card, onClose, onUpdate }: CardDrawerProps) {
             <>
               <div className="hr" />
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--ink-500)', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 6 }}>Effect</div>
-              <div
-                style={{ fontSize: 13, color: 'var(--ink-700)', lineHeight: 1.55 }}
-                dangerouslySetInnerHTML={{ __html: c.effect }}
-              />
+              <div style={{ fontSize: 13, color: 'var(--ink-700)', lineHeight: 1.55 }}>
+                {decodeHtmlEntities(c.effect)}
+              </div>
             </>
           )}
 

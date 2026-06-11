@@ -28,7 +28,7 @@ export function useLocalPrefs(): UseLocalPrefsReturn {
   const toggleWishlist = useCallback((cardId: string) => {
     setWishlist(prev => {
       const next = new Set(prev);
-      next.has(cardId) ? next.delete(cardId) : next.add(cardId);
+      if (!next.delete(cardId)) next.add(cardId);
       saveSet('rift-wishlist', next);
       return next;
     });
@@ -37,7 +37,7 @@ export function useLocalPrefs(): UseLocalPrefsReturn {
   const toggleFavorite = useCallback((cardId: string) => {
     setFavorites(prev => {
       const next = new Set(prev);
-      next.has(cardId) ? next.delete(cardId) : next.add(cardId);
+      if (!next.delete(cardId)) next.add(cardId);
       saveSet('rift-favorites', next);
       return next;
     });

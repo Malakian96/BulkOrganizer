@@ -11,6 +11,7 @@ export interface BulkEditCardsCommand {
     type: string;
     supertype: string | null;
     might: number | null;
+    power: number | null;
     tags: string[];
     set: string;
     rarity: string;
