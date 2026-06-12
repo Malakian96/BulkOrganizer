@@ -45,19 +45,23 @@ export interface NameOcrResult {
   processedImageB64: string;
 }
 
+// Mirror the frontend guide overlay geometry (.scan-frame):
+// 62% wide, centered, 2.5/3.5 aspect. Height may exceed the display height
+// and be clipped — clamp to fullH.
+function cardFrameGeometry(fullW: number, fullH: number) {
+  const cardW = Math.round(fullW * 0.62);
+  const cardH = Math.min(fullH, Math.round(cardW * (3.5 / 2.5)));
+  const cardX = Math.round((fullW - cardW) / 2);
+  const cardY = Math.max(0, Math.round((fullH - cardH) / 2));
+  return { cardW, cardH, cardX, cardY };
+}
+
 export async function extractCardName(base64Image: string): Promise<NameOcrResult> {
   const data = base64Image.replace(/^data:image\/\w+;base64,/, '');
   const inputBuf = Buffer.from(data, 'base64');
 
   const { width: fullW = 640, height: fullH = 480 } = await sharp(inputBuf).metadata();
-
-  // Mirror the frontend guide overlay geometry:
-  // scan-frame is 62% wide, centered, 2.5/3.5 aspect. Height may exceed
-  // the display height and be clipped — clamp to fullH.
-  const cardW = Math.round(fullW * 0.62);
-  const cardH = Math.min(fullH, Math.round(cardW * (3.5 / 2.5)));
-  const cardX = Math.round((fullW - cardW) / 2);
-  const cardY = Math.max(0, Math.round((fullH - cardH) / 2));
+  const { cardW, cardH, cardX, cardY } = cardFrameGeometry(fullW, fullH);
 
   // Name banner sits at 50–68% of card height
   const left   = Math.max(0, cardX);
@@ -108,9 +112,19 @@ export async function extractCardId(base64Image: string): Promise<OcrResult> {
   const data = base64Image.replace(/^data:image\/\w+;base64,/, '');
   const inputBuf = Buffer.from(data, 'base64');
 
-  // Frontend already crops to the scan-id-zone; just resize to a standard width
-  // so Tesseract has enough pixels regardless of device resolution.
+  const { width: fullW = 640, height: fullH = 480 } = await sharp(inputBuf).metadata();
+  const { cardW, cardH, cardX, cardY } = cardFrameGeometry(fullW, fullH);
+
+  // ID print sits bottom-left of the card frame (.scan-id-zone: 38% × 14%)
+  const zoneW = Math.round(cardW * 0.38);
+  const zoneH = Math.max(1, Math.round(cardH * 0.14));
+  const left  = Math.max(0, cardX);
+  const top   = Math.max(0, Math.min(fullH - zoneH, cardY + cardH - zoneH));
+
+  // Crop the ID zone, then resize to a standard width so Tesseract has
+  // enough pixels regardless of device resolution.
   const resizedBuf = await sharp(inputBuf)
+    .extract({ left, top, width: Math.min(zoneW, fullW - left), height: zoneH })
     .resize(600, null, { withoutEnlargement: false })
     .toBuffer();
 
@@ -142,8 +156,9 @@ export async function extractCardId(base64Image: string): Promise<OcrResult> {
   })();
   const compressedText = rawText.replace(/(\d)\s+(?=[\d/])/g, '$1');
 
-  // Match "SFD • 046/221" — bullet may OCR as any non-alphanumeric chars
-  const match = compressedText.match(/([A-Z]{2,5})\W{0,5}(\d{3})\/\d{3}/);
+  // Match "SFD • 046/221" — bullet may OCR as any non-alphanumeric chars,
+  // and the total after the slash doesn't matter (its digits often misread)
+  const match = compressedText.match(/([A-Z]{2,5})\W{0,5}(\d{3})\s*\/\s*\d/);
 
   return {
     rawText,

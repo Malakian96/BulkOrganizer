@@ -1,6 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+// Inside Docker the backend is reachable via its service name, not localhost
+const proxyTarget = process.env.VITE_PROXY_TARGET ?? 'http://localhost:4000';
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -12,10 +15,10 @@ export default defineConfig({
       interval: 300,
     },
     proxy: {
-      '/api': 'http://localhost:4000',
-      '/health': 'http://localhost:4000',
+      '/api': proxyTarget,
+      '/health': proxyTarget,
       '/socket.io': {
-        target: 'http://localhost:4000',
+        target: proxyTarget,
         ws: true,
         changeOrigin: true,
       },

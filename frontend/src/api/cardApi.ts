@@ -1,6 +1,5 @@
 import { BulkEditPayload, CardDTO, CreateCardPayload, RemoveCardsPayload } from '../types/card';
-
-const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+import { API_BASE as BASE } from './base';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {

@@ -21,7 +21,7 @@ export function QuickAddModal({ open, onClose, onSubmit }: QuickAddModalProps) {
   const [type, setType] = useState('Unit');
   const [cost, setCost] = useState(3);
   const [qty, setQty] = useState(1);
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedCard, setSelectedCard] = useState<CatalogCard | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [suggestions, setSuggestions] = useState<CatalogCard[]>([]);
@@ -49,7 +49,7 @@ export function QuickAddModal({ open, onClose, onSubmit }: QuickAddModalProps) {
 
   const applySuggestion = (card: CatalogCard) => {
     setName(card.name);
-    setSelectedCardId(card.cardId);
+    setSelectedCard(card);
     setRarity(card.rarity.toLowerCase());
     setType(card.type || 'Unit');
     if (card.cost != null) setCost(card.cost);
@@ -58,7 +58,7 @@ export function QuickAddModal({ open, onClose, onSubmit }: QuickAddModalProps) {
 
   const reset = () => {
     setName(''); setDomain('calm'); setRarity('common'); setType('Unit');
-    setCost(3); setQty(1); setSelectedCardId(null); setSuggestions([]);
+    setCost(3); setQty(1); setSelectedCard(null); setSuggestions([]);
   };
 
   const submit = async () => {
@@ -66,13 +66,27 @@ export function QuickAddModal({ open, onClose, onSubmit }: QuickAddModalProps) {
     setSubmitting(true);
     try {
       await onSubmit({
-        cardId: selectedCardId ?? `manual-${Date.now()}`,
+        cardId: selectedCard?.cardId ?? `manual-${Date.now()}`,
         name: name.trim(),
         colors: [domain],
         rarity,
         type,
         cost,
         quantity: qty,
+        // Carry the full catalog data when a suggestion was picked
+        ...(selectedCard && {
+          set: selectedCard.set,
+          imageUrl: selectedCard.imageUrl,
+          effect: selectedCard.effect,
+          flavorText: selectedCard.flavorText,
+          tags: selectedCard.tags,
+          might: selectedCard.might,
+          power: selectedCard.power,
+          supertype: selectedCard.supertype,
+          hasFoil: selectedCard.hasFoil,
+          promo: selectedCard.promo,
+          banned: selectedCard.banned,
+        }),
       });
       reset();
       onClose();
@@ -97,7 +111,7 @@ export function QuickAddModal({ open, onClose, onSubmit }: QuickAddModalProps) {
             <input
               ref={inputRef}
               value={name}
-              onChange={(e) => { setName(e.target.value); setSelectedCardId(null); setShowSuggestions(true); }}
+              onChange={(e) => { setName(e.target.value); setSelectedCard(null); setShowSuggestions(true); }}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
               placeholder="Start typing to search the catalog…"
             />

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { DesignCard, mapCatalogCard } from '../../mockData';
 import { LiveScanResult, CatalogCardResult } from '../../api/scanApi';
+import { API_BASE } from '../../api/base';
 import { Icon } from '../shared/Icon';
 
 interface ScannerScreenProps {
@@ -68,7 +69,12 @@ export function ScannerScreen({ cards, onIncrement }: ScannerScreenProps) {
 
   // ── Socket ───────────────────────────────────────────────────────────────
   useEffect(() => {
-    const socket = io({ path: '/socket.io', transports: ['websocket', 'polling'] });
+    // Reach the backend the same way the REST wrappers do: directly via
+    // VITE_API_URL when set, otherwise same-origin (Vite/nginx proxy).
+    const socket = io(API_BASE || window.location.origin, {
+      path: '/socket.io',
+      transports: ['websocket', 'polling'],
+    });
     socketRef.current = socket;
 
     socket.on('scan:result', (result: LiveScanResult) => {

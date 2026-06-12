@@ -1,8 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { extractCardId } from '../../../infrastructure/ocr/cardOcr';
-import { mongoCatalogService } from '../../../infrastructure/catalog/MongoCatalogService';
+import { ScanCardIdHandler } from '../../../application/scan/ScanCardId/ScanCardIdHandler';
+import { CatalogCard } from '../../../infrastructure/catalog/MongoCatalogService';
 
 export class ScanController {
+  constructor(private readonly scanCardIdHandler: ScanCardIdHandler<CatalogCard>) {}
+
   scan = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { image } = req.body as { image?: string };
@@ -11,11 +13,15 @@ export class ScanController {
         return;
       }
 
-      const { rawText, compressedText, extracted, brightness, processedImageB64 } = await extractCardId(image);
+      const { ocr, displayId, card } = await this.scanCardIdHandler.execute({ image });
+      const debugBase = {
+        rawText: ocr.rawText,
+        compressedText: ocr.compressedText,
+        brightness: ocr.brightness,
+        processedImageB64: ocr.processedImageB64,
+      };
 
-      const debugBase = { rawText, compressedText, brightness, processedImageB64 };
-
-      if (!extracted) {
+      if (!ocr.extracted) {
         res.json({
           cardId: null,
           card: null,
@@ -24,17 +30,14 @@ export class ScanController {
         return;
       }
 
-      const displayId = `${extracted.setAbbr}-${extracted.number}`;
-      const card = await mongoCatalogService.findBySetAndNumber(extracted.setAbbr, extracted.number);
-
       res.json({
         cardId: card?.cardId ?? displayId,
         card,
         debug: {
           ...debugBase,
           matched: displayId,
-          setAbbr: extracted.setAbbr,
-          number: extracted.number,
+          setAbbr: ocr.extracted.setAbbr,
+          number: ocr.extracted.number,
           reason: card ? 'Found in catalog' : 'Not found in catalog',
         },
       });

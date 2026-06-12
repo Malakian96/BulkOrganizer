@@ -33,6 +33,11 @@ export class ScanSocket {
     });
   }
 
+  // Disconnects all clients and closes the underlying HTTP server
+  close(): Promise<void> {
+    return new Promise((resolve) => this.io.close(() => resolve()));
+  }
+
   private async handleFrame(socket: Socket, frameB64: string): Promise<void> {
     try {
       const { rawText, brightness, processedImageB64 } = await extractCardName(frameB64);

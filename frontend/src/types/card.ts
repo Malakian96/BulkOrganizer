@@ -9,6 +9,7 @@ export interface CardDTO {
   type: string;
   supertype: string | null;
   might: number | null;
+  power: number | null;
   tags: string[];
   set: string;
   rarity: string;
@@ -33,6 +34,7 @@ export interface CreateCardPayload {
   type?: string;
   supertype?: string | null;
   might?: number | null;
+  power?: number | null;
   tags?: string[];
   set?: string;
   rarity?: string;
@@ -51,7 +53,7 @@ export interface BulkEditPayload {
     CardDTO,
     | 'quantity' | 'foilQuantity' | 'notes'
     | 'effect' | 'flavorText' | 'colors' | 'cost'
-    | 'type' | 'supertype' | 'might' | 'tags'
+    | 'type' | 'supertype' | 'might' | 'power' | 'tags'
     | 'set' | 'rarity' | 'imageUrl'
     | 'hasFoil' | 'promo' | 'banned'
   >>;
