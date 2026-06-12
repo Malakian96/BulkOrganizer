@@ -1,8 +1,7 @@
 import { Card } from '../../domain/card/Card';
-import { CardFilter, ICardRepository } from '../../domain/card/ICardRepository';
+import { ICardRepository } from '../../domain/card/ICardRepository';
 import { CardMapper } from './CardMapper';
 import { CardModel } from './CardDocument';
-import { buildCardQuery } from './buildCardQuery';
 
 export class MongoCardRepository implements ICardRepository {
   async findById(id: string): Promise<Card | null> {
@@ -15,8 +14,8 @@ export class MongoCardRepository implements ICardRepository {
     return doc ? CardMapper.toDomain(doc) : null;
   }
 
-  async findAll(filter?: CardFilter): Promise<Card[]> {
-    const docs = await CardModel.find(buildCardQuery(filter)).sort({ createdAt: -1 }).exec();
+  async findAll(): Promise<Card[]> {
+    const docs = await CardModel.find().sort({ createdAt: -1 }).exec();
     return docs.map(CardMapper.toDomain);
   }
 

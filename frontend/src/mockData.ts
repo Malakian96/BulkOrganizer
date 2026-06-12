@@ -1,4 +1,4 @@
-import { CardDTO, CreateCardPayload } from './types/card';
+import { CardDTO } from './types/card';
 import { CatalogCard } from './api/catalogApi';
 
 // ── Design tokens (mirrors styles.css domain/rarity variables) ──────────
@@ -122,26 +122,6 @@ export function mapCardDTO(
     flavorText: card.flavorText || undefined,
     tags: card.tags ?? [],
     sourceType: 'collection',
-  };
-}
-
-// Payload for adding a catalog/scanned card to the collection
-export function toCreateCardPayload(card: DesignCard, quantity: number): CreateCardPayload {
-  return {
-    cardId: card.cardId,
-    name: card.name,
-    colors: [card.domain],
-    rarity: card.rarity,
-    type: card.type,
-    cost: card.cost ?? undefined,
-    might: card.might ?? undefined,
-    power: card.power ?? undefined,
-    quantity,
-    set: card.set,
-    imageUrl: card.imageUrl,
-    effect: card.effect,
-    flavorText: card.flavorText,
-    tags: card.tags,
   };
 }
 

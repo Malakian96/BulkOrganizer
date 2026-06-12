@@ -24,24 +24,9 @@ export interface CardDTO {
   updatedAt: string;
 }
 
+// The collection references catalog cards — only entry fields are sent
 export interface CreateCardPayload {
   cardId: string;
-  name: string;
-  effect?: string;
-  flavorText?: string;
-  colors?: string[];
-  cost?: number | null;
-  type?: string;
-  supertype?: string | null;
-  might?: number | null;
-  power?: number | null;
-  tags?: string[];
-  set?: string;
-  rarity?: string;
-  imageUrl?: string;
-  hasFoil?: boolean;
-  promo?: boolean;
-  banned?: boolean;
   quantity?: number;
   foilQuantity?: number;
   notes?: string;

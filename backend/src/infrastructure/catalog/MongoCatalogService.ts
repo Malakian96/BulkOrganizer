@@ -96,6 +96,13 @@ export const mongoCatalogService = {
     return doc ? docToCard(doc) : null;
   },
 
+  // Batch lookup for joining collection entries with their card facts
+  async findByCardIds(cardIds: string[]): Promise<Map<string, CatalogCard>> {
+    if (cardIds.length === 0) return new Map();
+    const docs = await CatalogModel.find({ cardId: { $in: cardIds } }).lean().exec();
+    return new Map(docs.map((d) => [d.cardId as string, docToCard(d)]));
+  },
+
   // Flexible lookup for OCR results — tries common cardId formats the scraper may use
   async findBySetAndNumber(setAbbr: string, number: string): Promise<CatalogCard | null> {
     const n = parseInt(number, 10); // strip leading zeros: "046" → 46

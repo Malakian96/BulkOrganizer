@@ -1,7 +1,13 @@
-import { CardFilter } from '../../domain/card/ICardRepository';
+export interface CardQueryFilter {
+  name?: string;
+  set?: string;
+  type?: string;
+  rarity?: string;
+  colors?: string[];
+}
 
-// Shared filter → MongoDB query translation for collection and catalog reads
-export function buildCardQuery(filter?: CardFilter): Record<string, unknown> {
+// Filter → MongoDB query translation for catalog reads
+export function buildCardQuery(filter?: CardQueryFilter): Record<string, unknown> {
   const query: Record<string, unknown> = {};
   if (filter?.name) query.name = { $regex: filter.name, $options: 'i' };
   if (filter?.set) query.set = filter.set;

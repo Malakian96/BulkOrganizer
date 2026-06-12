@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useCards } from './hooks/useCards';
 import { useLocalPrefs } from './hooks/useLocalPrefs';
-import { DesignCard, mapCardDTO, mapCatalogCard, toCreateCardPayload } from './mockData';
+import { DesignCard, mapCardDTO } from './mockData';
 import { CatalogCard } from './api/catalogApi';
 import { petalBurst } from './utils/petals';
 import { Icon } from './components/shared/Icon';
@@ -95,10 +95,10 @@ export default function App() {
 
   // ── Adding copies — always resolve by cardId so a card never gets a
   //    second collection entry, regardless of which screen it came from ─────
-  const addCopies = useCallback(async (card: DesignCard, count: number) => {
-    const entry = rawCards.find(c => c.cardId === card.cardId);
+  const addCopies = useCallback(async (cardId: string, count: number) => {
+    const entry = rawCards.find(c => c.cardId === cardId);
     if (entry) await editCards([entry.id], { quantity: entry.quantity + count });
-    else await addCard(toCreateCardPayload(card, count));
+    else await addCard({ cardId, quantity: count });
   }, [rawCards, editCards, addCard]);
 
   // ── Drawer update (owned qty stepper — sets the absolute quantity) ──────
@@ -108,26 +108,26 @@ export default function App() {
       if (qty <= 0) await deleteCards([entry.id]);
       else await editCards([entry.id], { quantity: qty });
     } else if (qty > 0) {
-      await addCard(toCreateCardPayload(card, qty));
+      await addCard({ cardId: card.cardId, quantity: qty });
     }
   }, [rawCards, deleteCards, editCards, addCard]);
 
   // ── Mark owned (from catalog CTA) — acquiring a card clears its wishlist ─
   const handleMarkOwned = useCallback(async (card: DesignCard) => {
-    await addCopies(card, 1);
+    await addCopies(card.cardId, 1);
     removeWishlist(card.cardId);
   }, [addCopies, removeWishlist]);
 
   // ── Scanner increment ────────────────────────────────────────────────────
   const handleIncrement = useCallback(async (card: DesignCard) => {
-    await addCopies(card, 1);
+    await addCopies(card.cardId, 1);
   }, [addCopies]);
 
   // ── Quick Add (catalog-only) ─────────────────────────────────────────────
   const handleAddCard = useCallback(async (card: CatalogCard, qty: number) => {
-    await addCopies(mapCatalogCard(card, 0, wishlist, favorites), qty);
+    await addCopies(card.cardId, qty);
     setShowAdd(false);
-  }, [addCopies, wishlist, favorites]);
+  }, [addCopies]);
 
   // ── Bulk actions ─────────────────────────────────────────────────────────
   const selectedCards = useMemo(

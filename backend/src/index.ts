@@ -14,19 +14,22 @@ import { ScanCardIdHandler } from './application/scan/ScanCardId/ScanCardIdHandl
 import { createApp } from './interface/http/app';
 import { warmUpOcr, extractCardId } from './infrastructure/ocr/cardOcr';
 import { mongoCatalogService } from './infrastructure/catalog/MongoCatalogService';
+import { migrateCollectionEntries } from './infrastructure/persistence/migrations';
 import { ScanSocket } from './infrastructure/scanning/ScanSocket';
 
 async function main() {
   await mongoConnection.connect(env.MONGODB_URI);
+  await migrateCollectionEntries();
 
   warmUpOcr();
 
   const repo = new MongoCardRepository();
   const cardController = new CardController(
-    new AddCardHandler(repo),
+    new AddCardHandler(repo, mongoCatalogService),
     new RemoveCardHandler(repo),
     new BulkEditCardsHandler(repo),
-    new GetCardsHandler(repo)
+    new GetCardsHandler(repo),
+    mongoCatalogService
   );
   const catalogController = new CatalogController();
   const scanController = new ScanController(

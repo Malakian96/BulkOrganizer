@@ -14,13 +14,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const cardApi = {
-  getCards(params?: { name?: string; category?: string; tags?: string[] }): Promise<CardDTO[]> {
-    const qs = new URLSearchParams();
-    if (params?.name) qs.set('name', params.name);
-    if (params?.category) qs.set('category', params.category);
-    if (params?.tags?.length) qs.set('tags', params.tags.join(','));
-    const query = qs.toString();
-    return request<CardDTO[]>(`/api/cards${query ? `?${query}` : ''}`);
+  getCards(): Promise<CardDTO[]> {
+    return request<CardDTO[]>('/api/cards');
   },
 
   createCard(payload: CreateCardPayload): Promise<CardDTO> {
