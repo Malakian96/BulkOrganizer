@@ -41,6 +41,8 @@ export interface DesignCard {
   might: number | null;
   power: number | null;
   owned: number;
+  foilOwned: number;
+  notes: string;
   wishlist: boolean;
   fav: boolean;
   dateAdded: number;
@@ -114,6 +116,8 @@ export function mapCardDTO(
     might: card.might ?? null,
     power: card.power ?? null,
     owned: card.quantity ?? 0,
+    foilOwned: card.foilQuantity ?? 0,
+    notes: card.notes ?? '',
     wishlist: wishlist.has(card.cardId),
     fav: favorites.has(card.cardId),
     dateAdded: card.createdAt ? new Date(card.createdAt).getTime() : Date.now(),
@@ -144,6 +148,8 @@ export function mapCatalogCard(
     might: card.might ?? null,
     power: card.power ?? null,
     owned: ownedQty,
+    foilOwned: 0,
+    notes: '',
     wishlist: wishlist.has(card.cardId),
     fav: favorites.has(card.cardId),
     dateAdded: Date.now(),

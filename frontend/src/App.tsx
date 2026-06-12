@@ -112,6 +112,12 @@ export default function App() {
     }
   }, [rawCards, deleteCards, editCards, addCard]);
 
+  // ── Entry fields (foil count, notes) — only exist for owned cards ───────
+  const handleEntryEdit = useCallback(async (card: DesignCard, patch: { foilQuantity?: number; notes?: string }) => {
+    const entry = rawCards.find(c => c.cardId === card.cardId);
+    if (entry) await editCards([entry.id], patch);
+  }, [rawCards, editCards]);
+
   // ── Mark owned (from catalog CTA) — acquiring a card clears its wishlist ─
   const handleMarkOwned = useCallback(async (card: DesignCard) => {
     await addCopies(card.cardId, 1);
@@ -355,6 +361,8 @@ export default function App() {
         onClose={closeDrawer}
         onUpdate={(card, patch) => {
           if (patch.owned !== undefined) void handleUpdate(card, patch.owned);
+          if (patch.foilOwned !== undefined) void handleEntryEdit(card, { foilQuantity: patch.foilOwned });
+          if (patch.notes !== undefined) void handleEntryEdit(card, { notes: patch.notes });
           // patches carry target values — only toggle when the state differs
           if (patch.fav !== undefined && patch.fav !== favorites.has(card.cardId)) toggleFavorite(card.cardId);
           if (patch.wishlist !== undefined && patch.wishlist !== wishlist.has(card.cardId)) toggleWishlist(card.cardId);

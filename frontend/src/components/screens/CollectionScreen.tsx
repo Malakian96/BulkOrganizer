@@ -3,7 +3,9 @@ import { DesignCard, RARITIES } from '../../mockData';
 import { TCard } from '../TCard';
 import { TRow } from '../TRow';
 import { FilterPanel, Sort } from '../FilterPanel';
+import { Icon } from '../shared/Icon';
 import { petalBurst } from '../../utils/petals';
+import { exportCollectionCsv } from '../../utils/exportCsv';
 
 interface CollectionScreenProps {
   cards: DesignCard[];
@@ -60,7 +62,12 @@ export function CollectionScreen({ cards, view, search, selected, setSelected, o
     <>
       <div className="section-head">
         <div><h2>My Collection</h2></div>
-        <div className="meta">{filtered.length.toLocaleString()} cards</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="meta">{filtered.length.toLocaleString()} cards</div>
+          <button className="btn sm" onClick={() => exportCollectionCsv(cards)} title="Download collection as CSV">
+            <Icon name="download" size={13} /> Export CSV
+          </button>
+        </div>
       </div>
 
       <div className="screen-layout">

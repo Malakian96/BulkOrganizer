@@ -66,10 +66,12 @@ Dependency injection is manual and wired in `src/index.ts`: the repository is in
 
 | Collection | Owner | Description |
 |---|---|---|
-| `cards` | This app | User's personal collection — managed via `MongoCardRepository` |
+| `cards` | This app | Collection entries: `{ cardId, quantity, foilQuantity, notes }` — managed via `MongoCardRepository` |
 | `catalog` (or similar) | RiftboundScraper | Read-only reference data — queried by `MongoCatalogService` |
 
 The catalog collection is never written by this app. If it's empty, the Catalog tab shows nothing.
+
+**Collection entries don't store card facts.** An entry only references a `cardId`; name/cost/rarity/etc. are joined from the catalog at read time in `CardController` (via `mongoCatalogService.findByCardIds`), so scraper updates flow through automatically. `AddCardHandler` rejects cardIds that don't exist in the catalog and merges quantities when the card is already owned. An idempotent startup migration (`infrastructure/persistence/migrations.ts`) dedupes and strips legacy fat documents.
 
 ### Frontend — React + Vite + Tailwind
 

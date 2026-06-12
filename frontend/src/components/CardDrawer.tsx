@@ -9,7 +9,10 @@ import { decodeHtmlEntities } from '../utils/html';
 interface CardDrawerProps {
   card: DesignCard | null;
   onClose: () => void;
-  onUpdate: (card: DesignCard, patch: { owned?: number; wishlist?: boolean; fav?: boolean }) => void;
+  onUpdate: (
+    card: DesignCard,
+    patch: { owned?: number; foilOwned?: number; notes?: string; wishlist?: boolean; fav?: boolean },
+  ) => void;
 }
 
 export function CardDrawer({ card, onClose, onUpdate }: CardDrawerProps) {
@@ -89,6 +92,39 @@ export function CardDrawer({ card, onClose, onUpdate }: CardDrawerProps) {
               onChange={(v) => onUpdate(c, { owned: v, wishlist: v === 0 ? c.wishlist : false })}
             />
           </div>
+
+          {c.owned > 0 && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 10 }}>
+                <div className="kv-grid" style={{ marginTop: 0 }}>
+                  <div className="kv" style={{ padding: '8px 10px' }}>
+                    <span className="k">Foil</span>
+                    <span className="v" style={{ fontSize: 18 }}>{c.foilOwned}</span>
+                  </div>
+                </div>
+                <Stepper
+                  value={c.foilOwned}
+                  onChange={(v) => onUpdate(c, { foilOwned: v })}
+                />
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--ink-500)', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 6 }}>Notes</div>
+                <textarea
+                  key={c.id}
+                  defaultValue={c.notes}
+                  placeholder="Condition, trades, where it lives…"
+                  rows={2}
+                  style={{
+                    width: '100%', resize: 'vertical', fontSize: 13, lineHeight: 1.5,
+                    padding: '8px 10px', border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)',
+                    background: 'var(--paper)', color: 'var(--ink-700)', fontFamily: 'inherit',
+                  }}
+                  onBlur={(e) => { if (e.target.value !== c.notes) onUpdate(c, { notes: e.target.value }); }}
+                />
+              </div>
+            </>
+          )}
 
           <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
             <button
