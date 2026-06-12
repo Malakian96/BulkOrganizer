@@ -98,7 +98,6 @@ export function CardDrawer({ card, onClose, onUpdate }: CardDrawerProps) {
             >
               <Icon name="flag" size={14} /> {c.wishlist ? 'On wishlist' : 'Add to wishlist'}
             </button>
-            <button className="btn"><Icon name="layers" size={14} /> Add to deck</button>
           </div>
 
           {c.effect && (

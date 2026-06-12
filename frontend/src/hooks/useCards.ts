@@ -34,7 +34,14 @@ export function useCards(): UseCardsReturn {
 
   const addCard = useCallback(async (payload: CreateCardPayload) => {
     const card = await cardApi.createCard(payload);
-    setCards((prev) => [card, ...prev]);
+    // The backend merges by cardId — replace the entry if it already exists
+    setCards((prev) => {
+      const idx = prev.findIndex((c) => c.id === card.id);
+      if (idx < 0) return [card, ...prev];
+      const next = [...prev];
+      next[idx] = card;
+      return next;
+    });
   }, []);
 
   const deleteCards = useCallback(async (ids: string[]) => {

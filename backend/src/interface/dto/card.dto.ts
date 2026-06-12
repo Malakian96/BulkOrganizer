@@ -23,25 +23,11 @@ export const createCardSchema = z.object({
   notes: z.string().optional(),
 });
 
+// Only collection-entry fields are patchable — card facts come from the catalog
 const patchSchema = z.object({
   quantity: z.number().int().min(0).optional(),
   foilQuantity: z.number().int().min(0).optional(),
   notes: z.string().optional(),
-  effect: z.string().optional(),
-  flavorText: z.string().optional(),
-  colors: z.array(z.string()).optional(),
-  cost: z.number().int().min(0).nullable().optional(),
-  type: z.string().optional(),
-  supertype: z.string().nullable().optional(),
-  might: z.number().nullable().optional(),
-  power: z.number().nullable().optional(),
-  tags: z.array(z.string()).optional(),
-  set: z.string().optional(),
-  rarity: z.string().optional(),
-  imageUrl: z.string().optional(),
-  hasFoil: z.boolean().optional(),
-  promo: z.boolean().optional(),
-  banned: z.boolean().optional(),
 });
 
 export const bulkEditSchema = z.object({

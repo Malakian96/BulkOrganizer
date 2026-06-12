@@ -249,7 +249,7 @@ export function ScannerScreen({ cards, onIncrement }: ScannerScreenProps) {
           {/* Debug panel */}
           {lastDebug && (
             <div className="scan-result-area">
-              <details className="scan-debug" open>
+              <details className="scan-debug">
                 <summary>Debug</summary>
                 {lastDebug.processedImageB64 && (
                   <div className="scan-debug-img-wrap">

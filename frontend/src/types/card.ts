@@ -49,14 +49,8 @@ export interface CreateCardPayload {
 
 export interface BulkEditPayload {
   ids: string[];
-  patch: Partial<Pick<
-    CardDTO,
-    | 'quantity' | 'foilQuantity' | 'notes'
-    | 'effect' | 'flavorText' | 'colors' | 'cost'
-    | 'type' | 'supertype' | 'might' | 'power' | 'tags'
-    | 'set' | 'rarity' | 'imageUrl'
-    | 'hasFoil' | 'promo' | 'banned'
-  >>;
+  // Only collection-entry fields are editable — card facts come from the catalog
+  patch: Partial<Pick<CardDTO, 'quantity' | 'foilQuantity' | 'notes'>>;
 }
 
 export interface RemoveCardsPayload {

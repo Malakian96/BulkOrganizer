@@ -86,9 +86,9 @@ describe('Card.update', () => {
 
   it('updates multiple fields at once', () => {
     const card = Card.create({ cardId: 'SFD-001', name: 'Poro Snax' });
-    card.update({ quantity: 3, notes: 'Trade copy', rarity: 'epic' });
+    card.update({ quantity: 3, foilQuantity: 1, notes: 'Trade copy' });
     expect(card.quantity).toBe(3);
+    expect(card.foilQuantity).toBe(1);
     expect(card.notes).toBe('Trade copy');
-    expect(card.rarity).toBe('epic');
   });
 });

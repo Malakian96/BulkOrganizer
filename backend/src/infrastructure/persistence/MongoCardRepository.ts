@@ -10,6 +10,11 @@ export class MongoCardRepository implements ICardRepository {
     return doc ? CardMapper.toDomain(doc) : null;
   }
 
+  async findByCardId(cardId: string): Promise<Card | null> {
+    const doc = await CardModel.findOne({ cardId }).exec();
+    return doc ? CardMapper.toDomain(doc) : null;
+  }
+
   async findAll(filter?: CardFilter): Promise<Card[]> {
     const docs = await CardModel.find(buildCardQuery(filter)).sort({ createdAt: -1 }).exec();
     return docs.map(CardMapper.toDomain);

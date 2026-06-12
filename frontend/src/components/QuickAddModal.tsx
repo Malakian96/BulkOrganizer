@@ -1,25 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { Icon } from './shared/Icon';
 import { Stepper } from './shared/Stepper';
-import { DOMAINS, RARITIES } from '../mockData';
 import { CatalogCard, searchCatalog } from '../api/catalogApi';
-import { CreateCardPayload } from '../types/card';
 import { useDebounce } from '../hooks/useDebounce';
-
-const TYPES = ['Champion', 'Unit', 'Spell', 'Gear', 'Rune', 'Relic', 'Battlefield'];
 
 interface QuickAddModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (payload: CreateCardPayload) => Promise<void>;
+  onSubmit: (card: CatalogCard, quantity: number) => Promise<void>;
 }
 
 export function QuickAddModal({ open, onClose, onSubmit }: QuickAddModalProps) {
   const [name, setName] = useState('');
-  const [domain, setDomain] = useState('calm');
-  const [rarity, setRarity] = useState('common');
-  const [type, setType] = useState('Unit');
-  const [cost, setCost] = useState(3);
   const [qty, setQty] = useState(1);
   const [selectedCard, setSelectedCard] = useState<CatalogCard | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -41,7 +33,7 @@ export function QuickAddModal({ open, onClose, onSubmit }: QuickAddModalProps) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && open) onClose();
-      if (e.key === 'Enter' && open && document.activeElement?.tagName !== 'TEXTAREA') submit();
+      if (e.key === 'Enter' && open) submit();
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
@@ -50,44 +42,18 @@ export function QuickAddModal({ open, onClose, onSubmit }: QuickAddModalProps) {
   const applySuggestion = (card: CatalogCard) => {
     setName(card.name);
     setSelectedCard(card);
-    setRarity(card.rarity.toLowerCase());
-    setType(card.type || 'Unit');
-    if (card.cost != null) setCost(card.cost);
     setShowSuggestions(false);
   };
 
   const reset = () => {
-    setName(''); setDomain('calm'); setRarity('common'); setType('Unit');
-    setCost(3); setQty(1); setSelectedCard(null); setSuggestions([]);
+    setName(''); setQty(1); setSelectedCard(null); setSuggestions([]);
   };
 
   const submit = async () => {
-    if (!name.trim()) return;
+    if (!selectedCard || submitting) return;
     setSubmitting(true);
     try {
-      await onSubmit({
-        cardId: selectedCard?.cardId ?? `manual-${Date.now()}`,
-        name: name.trim(),
-        colors: [domain],
-        rarity,
-        type,
-        cost,
-        quantity: qty,
-        // Carry the full catalog data when a suggestion was picked
-        ...(selectedCard && {
-          set: selectedCard.set,
-          imageUrl: selectedCard.imageUrl,
-          effect: selectedCard.effect,
-          flavorText: selectedCard.flavorText,
-          tags: selectedCard.tags,
-          might: selectedCard.might,
-          power: selectedCard.power,
-          supertype: selectedCard.supertype,
-          hasFoil: selectedCard.hasFoil,
-          promo: selectedCard.promo,
-          banned: selectedCard.banned,
-        }),
-      });
+      await onSubmit(selectedCard, qty);
       reset();
       onClose();
     } finally {
@@ -102,7 +68,7 @@ export function QuickAddModal({ open, onClose, onSubmit }: QuickAddModalProps) {
     >
       <div className="modal" role="dialog">
         <div className="modal-head">
-          <h2>Add to collection</h2>
+          <h2>Add from catalog</h2>
           <button className="btn ghost sq" onClick={onClose}><Icon name="x" /></button>
         </div>
         <div className="modal-body">
@@ -133,40 +99,39 @@ export function QuickAddModal({ open, onClose, onSubmit }: QuickAddModalProps) {
                     onMouseLeave={(e) => (e.currentTarget.style.background = '')}
                   >
                     <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 600 }}>{card.name}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--ink-500)' }}>{card.setAbbr}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--ink-500)' }}>{card.cardId}</span>
                   </li>
                 ))}
               </ul>
             )}
           </div>
 
-          <div className="field-row">
-            <div className="field">
-              <label>Domain</label>
-              <select value={domain} onChange={(e) => setDomain(e.target.value)}>
-                {DOMAINS.map(d => <option key={d.id} value={d.id}>{d.name} · {d.subtitle}</option>)}
-              </select>
+          {selectedCard ? (
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 12, border: '1px solid var(--rule)', borderRadius: 'var(--radius-sm)', background: 'var(--card-2)' }}>
+              {selectedCard.imageUrl && (
+                <img
+                  src={selectedCard.imageUrl}
+                  alt={selectedCard.name}
+                  style={{ width: 58, borderRadius: 4, flexShrink: 0 }}
+                />
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 15 }}>{selectedCard.name}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--ink-500)', letterSpacing: '.1em', textTransform: 'uppercase', marginTop: 3 }}>
+                  {selectedCard.cardId} · {selectedCard.set}
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--ink-500)', marginTop: 3, textTransform: 'capitalize' }}>
+                  {selectedCard.type}{selectedCard.rarity ? ` · ${selectedCard.rarity}` : ''}
+                </div>
+              </div>
             </div>
-            <div className="field">
-              <label>Rarity</label>
-              <select value={rarity} onChange={(e) => setRarity(e.target.value)}>
-                {RARITIES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
+          ) : (
+            <div style={{ padding: '18px 12px', textAlign: 'center', color: 'var(--ink-500)', fontSize: 13, border: '1px dashed var(--rule)', borderRadius: 'var(--radius-sm)' }}>
+              Pick a card from the catalog to add it to your collection.
             </div>
-          </div>
-
-          <div className="field">
-            <label>Type</label>
-            <select value={type} onChange={(e) => setType(e.target.value)}>
-              {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
+          )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginTop: 4 }}>
-            <div>
-              <label style={{ fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.12em', color: 'var(--ink-500)', display: 'block', marginBottom: 6 }}>Cost</label>
-              <Stepper value={cost} onChange={setCost} min={0} max={12} />
-            </div>
             <div>
               <label style={{ fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.12em', color: 'var(--ink-500)', display: 'block', marginBottom: 6 }}>Quantity</label>
               <Stepper value={qty} onChange={setQty} min={1} max={20} />
@@ -179,7 +144,7 @@ export function QuickAddModal({ open, onClose, onSubmit }: QuickAddModalProps) {
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={() => void submit()} disabled={!name.trim() || submitting}>
+          <button className="btn primary" onClick={() => void submit()} disabled={!selectedCard || submitting}>
             <Icon name="plus" size={14} /> Add to collection
           </button>
         </div>

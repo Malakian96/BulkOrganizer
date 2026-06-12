@@ -18,7 +18,7 @@ export interface UseLocalPrefsReturn {
   favorites: Set<string>;
   toggleWishlist: (cardId: string) => void;
   toggleFavorite: (cardId: string) => void;
-  setWishlistOn: (cardId: string) => void;
+  removeWishlist: (cardId: string) => void;
 }
 
 export function useLocalPrefs(): UseLocalPrefsReturn {
@@ -43,14 +43,15 @@ export function useLocalPrefs(): UseLocalPrefsReturn {
     });
   }, []);
 
-  const setWishlistOn = useCallback((cardId: string) => {
+  const removeWishlist = useCallback((cardId: string) => {
     setWishlist(prev => {
+      if (!prev.has(cardId)) return prev;
       const next = new Set(prev);
-      next.add(cardId);
+      next.delete(cardId);
       saveSet('rift-wishlist', next);
       return next;
     });
   }, []);
 
-  return { wishlist, favorites, toggleWishlist, toggleFavorite, setWishlistOn };
+  return { wishlist, favorites, toggleWishlist, toggleFavorite, removeWishlist };
 }

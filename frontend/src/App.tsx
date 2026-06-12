@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useCards } from './hooks/useCards';
 import { useLocalPrefs } from './hooks/useLocalPrefs';
-import { DesignCard, mapCardDTO, toCreateCardPayload } from './mockData';
+import { DesignCard, mapCardDTO, mapCatalogCard, toCreateCardPayload } from './mockData';
+import { CatalogCard } from './api/catalogApi';
 import { petalBurst } from './utils/petals';
 import { Icon } from './components/shared/Icon';
 import { CardDrawer } from './components/CardDrawer';
@@ -12,7 +13,6 @@ import { ScannerScreen } from './components/screens/ScannerScreen';
 import { DecksScreen } from './components/screens/DecksScreen';
 import { WishlistScreen } from './components/screens/WishlistScreen';
 import { StatsScreen } from './components/screens/StatsScreen';
-import { CreateCardPayload } from './types/card';
 
 type Tab = 'collection' | 'catalog' | 'scanner' | 'decks' | 'wishlist' | 'stats';
 
@@ -49,7 +49,7 @@ export default function App() {
   const [showAdd, setShowAdd]       = useState(false);
 
   const { cards: rawCards, addCard, editCards, deleteCards, refresh } = useCards();
-  const { wishlist, favorites, toggleWishlist, toggleFavorite, setWishlistOn } = useLocalPrefs();
+  const { wishlist, favorites, toggleWishlist, toggleFavorite, removeWishlist } = useLocalPrefs();
 
   // Apply theme to document
   useEffect(() => {
@@ -93,40 +93,41 @@ export default function App() {
     if (!favorites.has(card.cardId)) petalBurst(el, 6);
   }, [toggleFavorite, favorites]);
 
-  // ── Drawer update (owned qty stepper) ───────────────────────────────────
+  // ── Adding copies — always resolve by cardId so a card never gets a
+  //    second collection entry, regardless of which screen it came from ─────
+  const addCopies = useCallback(async (card: DesignCard, count: number) => {
+    const entry = rawCards.find(c => c.cardId === card.cardId);
+    if (entry) await editCards([entry.id], { quantity: entry.quantity + count });
+    else await addCard(toCreateCardPayload(card, count));
+  }, [rawCards, editCards, addCard]);
+
+  // ── Drawer update (owned qty stepper — sets the absolute quantity) ──────
   const handleUpdate = useCallback(async (card: DesignCard, qty: number) => {
-    if (card.sourceType === 'collection') {
-      if (qty <= 0) {
-        await deleteCards([card.id]);
-      } else {
-        await editCards([card.id], { quantity: qty });
-      }
-    } else {
-      // catalog → add to collection
+    const entry = rawCards.find(c => c.cardId === card.cardId);
+    if (entry) {
+      if (qty <= 0) await deleteCards([entry.id]);
+      else await editCards([entry.id], { quantity: qty });
+    } else if (qty > 0) {
       await addCard(toCreateCardPayload(card, qty));
     }
-  }, [deleteCards, editCards, addCard]);
+  }, [rawCards, deleteCards, editCards, addCard]);
 
-  // ── Mark owned (from catalog CTA) ───────────────────────────────────────
+  // ── Mark owned (from catalog CTA) — acquiring a card clears its wishlist ─
   const handleMarkOwned = useCallback(async (card: DesignCard) => {
-    await addCard(toCreateCardPayload(card, 1));
-    setWishlistOn(card.cardId);
-  }, [addCard, setWishlistOn]);
+    await addCopies(card, 1);
+    removeWishlist(card.cardId);
+  }, [addCopies, removeWishlist]);
 
   // ── Scanner increment ────────────────────────────────────────────────────
   const handleIncrement = useCallback(async (card: DesignCard) => {
-    if (card.sourceType === 'collection') {
-      await editCards([card.id], { quantity: card.owned + 1 });
-    } else {
-      await addCard(toCreateCardPayload(card, 1));
-    }
-  }, [editCards, addCard]);
+    await addCopies(card, 1);
+  }, [addCopies]);
 
-  // ── Quick Add ────────────────────────────────────────────────────────────
-  const handleAddCard = useCallback(async (payload: CreateCardPayload) => {
-    await addCard(payload);
+  // ── Quick Add (catalog-only) ─────────────────────────────────────────────
+  const handleAddCard = useCallback(async (card: CatalogCard, qty: number) => {
+    await addCopies(mapCatalogCard(card, 0, wishlist, favorites), qty);
     setShowAdd(false);
-  }, [addCard]);
+  }, [addCopies, wishlist, favorites]);
 
   // ── Bulk actions ─────────────────────────────────────────────────────────
   const selectedCards = useMemo(
@@ -162,6 +163,12 @@ export default function App() {
     await deleteCards(selectedCards.map(c => c.id));
     setSelected([]);
   }, [selectedCards, deleteCards]);
+
+  // ── Drawer card stays live: reflect collection edits made while open ────
+  const drawerCard = useMemo(() => {
+    if (!drawer) return null;
+    return designCards.find(c => c.cardId === drawer.cardId) ?? drawer;
+  }, [drawer, designCards]);
 
   // ── Topbar title ─────────────────────────────────────────────────────────
   const tabLabel: Record<Tab, string> = {
@@ -344,12 +351,13 @@ export default function App() {
 
       {/* ── Card Drawer ─────────────────────────────────────────────────────── */}
       <CardDrawer
-        card={drawerOpen ? drawer : null}
+        card={drawerOpen ? drawerCard : null}
         onClose={closeDrawer}
         onUpdate={(card, patch) => {
           if (patch.owned !== undefined) void handleUpdate(card, patch.owned);
-          if (patch.fav !== undefined) toggleFavorite(card.cardId);
-          if (patch.wishlist !== undefined) toggleWishlist(card.cardId);
+          // patches carry target values — only toggle when the state differs
+          if (patch.fav !== undefined && patch.fav !== favorites.has(card.cardId)) toggleFavorite(card.cardId);
+          if (patch.wishlist !== undefined && patch.wishlist !== wishlist.has(card.cardId)) toggleWishlist(card.cardId);
         }}
       />
 

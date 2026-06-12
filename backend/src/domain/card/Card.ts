@@ -113,25 +113,12 @@ export class Card {
   get createdAt(): Date { return this.props.createdAt; }
   get updatedAt(): Date { return this.props.updatedAt; }
 
+  // Only collection-entry fields are mutable — card facts (name, cost,
+  // rarity, …) are owned by the catalog and never edited per entry.
   update(params: Partial<{
     quantity: number;
     foilQuantity: number;
     notes: string;
-    effect: string;
-    flavorText: string;
-    colors: string[];
-    cost: number | null;
-    type: string;
-    supertype: string | null;
-    might: number | null;
-    power: number | null;
-    tags: string[];
-    set: string;
-    rarity: string;
-    imageUrl: string;
-    hasFoil: boolean;
-    promo: boolean;
-    banned: boolean;
   }>): void {
     if (params.quantity !== undefined) {
       if (params.quantity < 0) throw new DomainError('Quantity cannot be negative');
@@ -142,21 +129,6 @@ export class Card {
       this.props.foilQuantity = params.foilQuantity;
     }
     if (params.notes !== undefined) this.props.notes = params.notes;
-    if (params.effect !== undefined) this.props.effect = params.effect;
-    if (params.flavorText !== undefined) this.props.flavorText = params.flavorText;
-    if (params.colors !== undefined) this.props.colors = params.colors;
-    if (params.cost !== undefined) this.props.cost = params.cost;
-    if (params.type !== undefined) this.props.type = params.type;
-    if (params.supertype !== undefined) this.props.supertype = params.supertype;
-    if (params.might !== undefined) this.props.might = params.might;
-    if (params.power !== undefined) this.props.power = params.power;
-    if (params.tags !== undefined) this.props.tags = params.tags;
-    if (params.set !== undefined) this.props.set = params.set;
-    if (params.rarity !== undefined) this.props.rarity = params.rarity;
-    if (params.imageUrl !== undefined) this.props.imageUrl = params.imageUrl;
-    if (params.hasFoil !== undefined) this.props.hasFoil = params.hasFoil;
-    if (params.promo !== undefined) this.props.promo = params.promo;
-    if (params.banned !== undefined) this.props.banned = params.banned;
     this.props.updatedAt = new Date();
   }
 }
